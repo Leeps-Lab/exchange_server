@@ -12,7 +12,7 @@ class OUCHMessage(object):
 	@classmethod
 	def from_OUCH(cls, message):
 		args = struct.unpack(cls.struct_format_str, message)[1:]
-		print args
+		print(args)
 		return cls(*args)
 
 BYTE_ORDER = '>' #big-endian
@@ -23,6 +23,7 @@ BUY_SELL_INDICATOR_FORMAT = 'c'
 SHARES_FORMAT = 'L'
 STOCK_FORMAT = '8s'
 PRICE_FORMAT = 'L'
+TIMESTAMP_FORMAT = 'q' ## long long, 8 bytes
 
 
 ##### Inbound messages
@@ -38,7 +39,7 @@ class EnterOrderOUCHMessage(OUCHMessage):
 
 	def __init__(self, order_token, 
 				buy_sell_indicator, shares, stock, price):
-		self.type = 'O'  								# format c
+		self.type = b'O'  								# format c
 		self.order_token = order_token					# format 14s
 		self.buy_sell_indicator = buy_sell_indicator 	# format c
 		self.shares = shares 							# format L, unsigned int
@@ -58,7 +59,7 @@ class ReplaceOrderOUCHMessage(OUCHMessage):
 							PRICE_FORMAT )
 
 	def __init__(self, existing_order_token, replacement_order_token, shares, price):
-		self.type = 'U'											#format c
+		self.type = b'U'											#format c
 		self.existing_order_token = existing_order_token		#format 14s
 		self.replacement_order_token = replacement_order_token 	#format 14s
 		self.shares = shares									#format L, unsigned int
@@ -75,7 +76,7 @@ class CancelOrderOUCHMessage(OUCHMessage):
 							SHARES_FORMAT )
 
 	def __init__(self, order_token, shares):
-		self.type='X'					#format c
+		self.type=b'X'					#format c
 		self.order_token = order_token  #format 14s
 		self.shares = shares 			#formatl L, unsigned int
 
@@ -91,7 +92,7 @@ class ModifyOrderOUCHMessage(OUCHMessage):
 							SHARES_FORMAT )
 
 	def __init__(self, order_token, buy_sell_indicator, shares):
-		self.type = 'M'					#format c
+		self.type = b'M'					#format c
 		self.order_token = order_token   #format 14s
 		self.buy_sell_indicator = buy_sell_indicator  #format c
 		self.shares = shares             #format L
@@ -113,7 +114,7 @@ class AcceptedOUCHMessage(OUCHMessage):
 							PRICE_FORMAT)
 
 	def __init__(self, timestamp, order_token, buy_sell_indicator, shares, stock, price):
-		self.type = 'A' 							  # c
+		self.type = b'A' 							  # c
 		self.timestamp = timestamp                    # L - number of nanoseconds since midnight
 		self.order_token = order_token                # 14s
 		self.buy_sell_indicator = buy_sell_indicator  # c
@@ -129,7 +130,7 @@ class ReplacedOUCHMessage(OUCHMessage):
 	struct_format_str = '>cL14scL8sL'
 
 	def __init__(self, timestamp, replacement_order_token, buy_sell_indicator, shares, stock, price):
-		self.type = 'U'											# c
+		self.type = b'U'											# c
 		self.timestamp = timestamp                              #L - nanoseconds since midnight
 		self.replacement_order_token = replacement_order_token  #14s
 		self.buy_sell_indicator = buy_sell_indicator            #c
@@ -155,7 +156,7 @@ class CanceledOUCHMessage(OUCHMessage):
 								'C':'''Cross cancelled. Non bookable cross orders that did not execute in the cross'''}
 	struct_format_str = '>cL14sLcLL'
 	def __init__(self, timestamp, order_token, decrement_shares, reason, quantity_prevented_from_trading, execution_price):
-		self.type='D'                                                           #c
+		self.type=b'D'                                                           #c
 		self.timestamp=timestamp                                                #L
 		self.order_token=order_token                                            #14s
 		self.decrement_shares = decrement_shares                                #L
@@ -171,7 +172,7 @@ class ExecutedOUCHMessage(OUCHMessage):
 	struct_format_str = '>cL14sLLQ'
 
 	def __init__(self, timestamp, order_token, executed_shares, execution_price, match_number):
-		self.type='E'							#c
+		self.type=b'E'							#c
 		self.timestamp = timestamp              #L
 		self.order_token = order_token          #14s
 		self.executed_shares = executed_shares  #L
@@ -185,7 +186,7 @@ class ExecutedOUCHMessage(OUCHMessage):
 def parse_OUCH(message):
 	'''Given a string in OUCH representation, returns the python object representing 
 	the message'''
-	message_type = message[0]
+	message_type = chr(message[0])
 	if message_type=='O':
 		return EnterOrderOUCHMessage.from_OUCH(message)
 	elif message_type=='U':
@@ -195,12 +196,12 @@ def parse_OUCH(message):
 
 
 if __name__ == '__main__':
-	m = EnterOrderOUCHMessage(order_token = '00000000000000', buy_sell_indicator='B', shares=10, stock='ABC', price=15)
+	m = EnterOrderOUCHMessage(order_token = b'00000000000000', buy_sell_indicator=b'B', shares=10, stock=b'ABC', price=15)
 	encoded = m.encode()
-	print "Encoded message={}".format(encoded)
+	print("Encoded message={}".format(encoded))
 	message = parse_OUCH(encoded)
-	print "Decoded message={}\n{}".format(message, message.fields())
-	assert message.type == 'O'
+	print("Decoded message={}\n{}".format(message, message.fields()))
+	assert message.type == b'O'
 	assert message.shares == 10
 	assert message.price == 15
-	assert message.stock == 'ABC'
+	assert message.stock == b'ABC\x00\x00\x00\x00\x00'
