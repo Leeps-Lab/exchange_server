@@ -65,6 +65,10 @@ class OUCHParrotServer:
             
             log.info("Received OUCH message: %s", message)
 
+            message.shares = message.shares*2
+
+            log.info("Replying with OUCH message with twice the shares: %s", message)
+
             response = binascii.b2a_hex(message.encode()).decode('ascii')
             
             log.debug("Sending hex encoded message: %s", response)

@@ -40,8 +40,9 @@ def main():
 
         # send a line
         while True:
-            await asyncio.sleep(2.0)
             m = EnterOrderOUCHMessage(order_token = b'00000000000000', buy_sell_indicator=b'B', shares=random.randrange(5,15), stock=b'ABC', price=random.randrange(21, 59))
+            log.info("Sending OUCH message: %s", m)
+
             send(m)
 
             await writer.drain()
@@ -51,6 +52,8 @@ def main():
             log.info("Received response OUCH: %s", response)    
             if response == 'end':
                 break
+
+            await asyncio.sleep(4.0)
             
 
         writer.close()
