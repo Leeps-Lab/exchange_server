@@ -1,5 +1,6 @@
 import struct
 
+
 class OUCHMessage(object):
 	''' Parent class for restricted class of OUCH v4.2 messages
 	See ouch documentation here: http://nasdaqtrader.com/content/technicalsupport/specifications/TradingProducts/OUCH4.2.pdf'''
@@ -14,6 +15,9 @@ class OUCHMessage(object):
 		args = struct.unpack(cls.struct_format_str, message)[1:]
 		print(args)
 		return cls(*args)
+
+	def __str__(self):
+		return str(self.fields())
 
 BYTE_ORDER = '>' #big-endian
 
@@ -196,6 +200,7 @@ def parse_OUCH(message):
 
 
 if __name__ == '__main__':
+	'''Sample testing use of simple OUCH messages'''
 	m = EnterOrderOUCHMessage(order_token = b'00000000000000', buy_sell_indicator=b'B', shares=10, stock=b'ABC', price=15)
 	encoded = m.encode()
 	print("Encoded message={}".format(encoded))
