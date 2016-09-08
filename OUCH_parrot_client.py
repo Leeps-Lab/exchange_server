@@ -40,7 +40,12 @@ def main():
 
         # send a line
         while True:
-            m = EnterOrderOUCHMessage(order_token = b'00000000000000', buy_sell_indicator=b'B', shares=random.randrange(5,15), stock=b'ABC', price=random.randrange(21, 59))
+            m = EnterOrderOUCHMessage(
+                order_token = b'00000000000000', 
+                buy_sell_indicator=b'B', 
+                shares=random.randrange(5,15), 
+                stock=b'ABC', 
+                price=random.randrange(21, 59))
             log.info("Sending OUCH message: %s", m)
 
             send(m)
