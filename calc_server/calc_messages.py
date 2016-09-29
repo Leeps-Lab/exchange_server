@@ -56,8 +56,8 @@ def unpack_calc_message(header, payload):
     return MessageClass(**payload)
             
 def pack_calc_message(msg):
-    packed_header = header
-    packed_payload = struct.pack(msg.payload_fmt, *(getattr(message, slot) for slot in msg.__slots__))
+    packed_header = msg.header
+    packed_payload = struct.pack(msg.payload_fmt, *(getattr(msg, slot) for slot in msg.__slots__))
     return packed_header + packed_payload
 
 def get_calc_message_payload_len(header):

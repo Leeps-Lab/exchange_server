@@ -19,7 +19,7 @@ p.add('--host', default='127.0.0.1', help="Address of server")
 options, args = p.parse_known_args()
 
 def main():
-    log.basicConfig(level=log.DEBUG)
+    log.basicConfig(level=log.WARNING)
     log.debug(options)
 
     async def client():
@@ -28,8 +28,8 @@ def main():
             options.port, 
             loop=loop)
 
-        def send(request):
-            data = binascii.b2a_hex(calc_messages.pack_calc_message(msg))
+        async def send(request):
+            data = binascii.b2a_hex(calc_messages.pack_calc_message(request))
             
             log.debug("Sending Calc message as hex: %s", data)
 
@@ -40,19 +40,22 @@ def main():
             data = None
             while not data:
                 try:
-                    data = (await client_reader.readexactly(2))
-                except IncompleteReadError:
+                    data = (await reader.readexactly(2))
+                except asyncio.IncompleteReadError:
                     log.error('connection terminated without response')
                     return None
-                if not data.decode().rstrip():
+                if not data.decode().strip():
+                    data = None
                     continue
+            log.debug("Received Calc header as hex: %s", data)
             header = binascii.a2b_hex(data)
             payload_len = calc_messages.get_calc_message_payload_len(header)
             try:
-                data = (await client_reader.readexactly(2*payload_len))
-            except IncompleteReadError as err:
+                data = (await reader.readexactly(2*payload_len))
+            except asyncio.IncompleteReadError as err:
                 log.error('Connection terminated mid-packet!')
                 return None
+            log.debug("Received Calc payload as hex: %s", data)
             payload = binascii.a2b_hex(data)
 
             response_msg = calc_messages.unpack_calc_message(header, payload)
@@ -69,14 +72,14 @@ def main():
                 trinary_operator=trinary_operator,
                 operand_1=random.randrange(2**32),
                 operand_2=random.randrange(2**32),
-                operand_2=random.randrange(2**32)
+                operand_3=random.randrange(2**32)
             )
 
-            print('send message: %s', request)
-            log.info("Sending Calc message: %s", m)
-            send(request)
+            print('send message: ', request)
+            log.info("Sending Calc message: %s", request)
+            await send(request)
             response = await recv()
-            print('recv message: %s', reponse)
+            print('recv message: ', response)
             log.info("Received response Calc message: %s", response)    
             await asyncio.sleep(4.0)
             
