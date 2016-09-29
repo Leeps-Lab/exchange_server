@@ -58,7 +58,7 @@ class CalcServer(object):
         while True:
             try:
                 data = (await client_reader.readexactly(2))
-            except IncompleteReadError:
+            except asyncio.IncompleteReadError:
                 log.info('no more messages; connection terminated')
                 break
             if not data.decode().rstrip():
@@ -67,13 +67,13 @@ class CalcServer(object):
             payload_len = calc_messages.get_calc_message_payload_len(header)
             try:
                 data = (await client_reader.readexactly(2*payload_len))
-            except IncompleteReadError as err:
+            except asyncio.IncompleteReadError as err:
                 log.error('Connection terminated mid-packet!')
                 break
             payload = binascii.a2b_hex(data)
 
             request_msg = calc_messages.unpack_calc_message(header, payload)
-            response_msg = calc_messages.handle_request(request_msg)
+            response_msg = calc_messages.handle_calc_request(request_msg)
             
             data = calc_messages.pack_calc_message(response_msg)
             data = binascii.b2a_hex(data)

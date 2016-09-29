@@ -19,7 +19,7 @@ p.add('--host', default='127.0.0.1', help="Address of server")
 options, args = p.parse_known_args()
 
 def main():
-    log.basicConfig(level=log.WARNING)
+    log.basicConfig(level=log.DEBUG)
     log.debug(options)
 
     async def client():
