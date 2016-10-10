@@ -32,7 +32,7 @@ def main():
             # data = binascii.b2a_hex(calc_messages.pack_calc_message(request))
             data = calc_messages.pack_calc_message(request)
             
-            log.debug("Sending Calc message as hex: %s", data)
+            log.debug('Sending Calc message as binary: "%s"', data)
 
             writer.write(data)  # + b' \n')
             await writer.drain()
@@ -41,22 +41,22 @@ def main():
             data = None
             while not data:
                 try:
-                    data = (await reader.readexactly(2))
+                    data = (await reader.readexactly(1))
                 except asyncio.IncompleteReadError:
                     log.error('connection terminated without response')
                     return None
                 if not data.decode().strip():
                     data = None
                     continue
-            log.debug("Received Calc header as hex: %s", data)
+            log.debug('Received Calc header as binary: "%s"', data)
             header = data  # binascii.a2b_hex(data)
             payload_len = calc_messages.get_calc_message_payload_len(header)
             try:
-                data = (await reader.readexactly(2*payload_len))
+                data = (await reader.readexactly(payload_len))
             except asyncio.IncompleteReadError as err:
                 log.error('Connection terminated mid-packet!')
                 return None
-            log.debug("Received Calc payload as hex: %s", data)
+            log.debug('Received Calc payload as binary: "%s"', data)
             payload = data  # binascii.a2b_hex(data)
 
             response_msg = calc_messages.unpack_calc_message(header, payload)

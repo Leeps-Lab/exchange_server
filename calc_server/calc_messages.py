@@ -1,4 +1,5 @@
 import struct
+import logging as log
 
 calc_field_specs = {
     'request_id': '7s',
@@ -66,32 +67,50 @@ def get_calc_message_payload_len(header):
 def handle_calc_request(msg):
     response = None
     if msg.header == b'B':
+        log.debug('request: %d %s %d',
+            msg.operand_1, msg.binary_operator.decode(), msg.operand_2)
         if msg.binary_operator == b'+':
             result = msg.operand_1 + msg.operand_2
+            log.debug('result:  %d', result)
             if result > 2**32-1:
+                log.debug('failed:  %d is max allowed value; overflow', 2**32-1)
                 response = calc_messages[b'F'](error_message=b'overflow    ')
             else:
+                log.debug('succeeded')
                 response = calc_messages[b'S'](result=result)
         elif msg.binary_operator == b'-':
             result = msg.operand_1 - msg.operand_2
+            log.debug('result:  %d', result)
             if result < 0:
+                log.debug('failed:  0 is min allowed value; underflow')
                 response = calc_messages[b'F'](error_message=b'underflow   ')
             else:
+                log.debug('succeeded')
                 response = calc_messages[b'S'](result=result)
         else:
+            log.debug('unknown operation')
             response = calc_messages[b'F'](error_message=b'unknown op  ')
     elif msg.header == b'T':
+        log.debug('request: %s(%d, %d, %d)',
+            msg.trinary_operator.decode(), msg.operand_1, msg.operand_2, msg.operand_3)
         if msg.trinary_operator == b'MED':
             result = sorted((msg.operand_1, msg.operand_2, msg.operand_3))[1]
+            log.debug('result:  %d', result)
             response = calc_messages[b'S'](result=result)
+            log.debug('succeeded')
         elif msg.trinary_operator == b'AVG':
             result = (msg.operand_1 + msg.operand_2 + msg.operand_3)/3
+            log.debug('result:  %f', result)
             if round(result) != result:
                 response = calc_messages[b'F'](error_message=b'res not int ')
+                log.debug('failed:  only integral values allowed')
             else:
                 response = calc_messages[b'S'](result=int(result))
+            log.debug('succeeded')
         else:
+            log.debug('unknown operation')
             response = calc_messages[b'F'](error_message=b'unknown op  ')
     else:
+        log.debug('unknown message type')
         response = calc_messages[b'F'](error_message=b'bad msg type')
     return response
