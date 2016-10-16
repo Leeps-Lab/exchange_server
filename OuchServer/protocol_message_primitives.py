@@ -1,5 +1,5 @@
-import enum
 import struct
+import enum
 
 class DuplicateFreeEnum(enum.Enum):
     # force unique values, as per docs:
@@ -69,7 +69,8 @@ class NamedFieldSequence(object, metaclass=NamedFieldSequenceSerializerMeta):
                 setattr(self, slot, kwargs.get(slot, None))
 
     def __bytes__(self):
-        assert not any(getattr(self, slot) is None for slot in self.__slots__)            
+        for slot in self.__slots__:
+            assert getattr(self, slot) is not None, 'slot %s has value None' % (slot)
         return self._struct_formatter.pack(
             *(getattr(self, slot) for slot in self.__slots__))
     
@@ -115,13 +116,23 @@ class ProtocolMessage(object):
         message = cls(message_type_spec)
         message.payload = message_type_spec.PayloadCls.from_bytes(payload_bytes)        
         return message
-        
-    def __bytes__(self):
-        return bytes(self._message_type_spec._header) + bytes(self.payload)
-        
+    @classmethod
+    def get_header_class(cls):
+        return cls._HeaderCls
+    @classmethod
+    def get_payload_base_class(cls):
+        return cls._PayloadBaseCls
+    
     @property
     def header(self):
         return self._message_type_spec.header
+    @property
+    def message_type(self):
+        return self._message_type_spec
+    
+    def __bytes__(self):
+        return bytes(self._message_type_spec.header) + bytes(self.payload)
+        
     def __len__(self):
         return len(self.payload)
     def __iter__(self):
@@ -144,25 +155,27 @@ class MessageTypeSpec(object):
         if name is None:
             name = self.name
         cls = self.__class__
-        self._header = cls._MessageCls._HeaderCls(**header_field_values)
+        HeaderCls = cls._MessageCls.get_header_class()
+        PayloadBaseCls = cls._MessageCls.get_payload_base_class()
+        self._header = HeaderCls(**header_field_values)
         self._PayloadCls = type(
-            name, (cls._MessageCls._PayloadBaseCls,), 
+            name, (PayloadBaseCls,),
             {'__slots__': payload_fields})
     
     def __call__(self, *args, **kwargs):
-        return self.MessageCls(self, *args, **kwargs)
+        return self._MessageCls(self, *args, **kwargs)
 
-    def from_bytes(self, message_bytes, header=False):
+    def from_bytes(self, message_bytes, header=True):
         if header:
             header_len = self._MessageCls._HeaderCls.size
             header_bytes = message_bytes[:header_len]
             message_bytes = message_bytes[header_len:]
             if header_bytes != self.header_bytes:
                 raise ValueError('header mismatch!')
-        return self.MessageCls.from_payload_bytes(self, message_bytes)
+        return self._MessageCls.from_payload_bytes(self, message_bytes)
     
-    @property
-    def MessageCls(self):
+    @classmethod
+    def get_message_class(self):
         return self._MessageCls
     @property
     def header(self):
@@ -173,6 +186,9 @@ class MessageTypeSpec(object):
     @property
     def PayloadCls(self):
         return self._PayloadCls
+    @property
+    def header_size(self):
+        return self._HeaderCls.get_header_class().size
     @property
     def payload_size(self):
         return self._PayloadCls.size
