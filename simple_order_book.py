@@ -1,5 +1,5 @@
 from collections import OrderedDict
-
+import logging as log
 
 class SimpleOrderBook:
 	def __init__(self,
@@ -12,7 +12,22 @@ class SimpleOrderBook:
 		self.bid = min_price
 		self.ask = max_price
 		self.orders = dict()
-		self.price_q = [ BookPriceQ() for price in range(self.min_price, self.max_price, self.decrement)]
+		self.price_q = [ BookPriceQ() for price in range(self.min_price, self.max_price+1, self.decrement)]
+	
+	def __str__(self):
+		bids = '\n'.join(['${} : {}'.format(price, str(price_qp)) for (price, price_qp) in enumerate(self.price_q) if price_qp.interest>0 and price<=self.bid])
+		asks = '\n'.join(['${} : {}'.format(price, str(price_qp)) for (price, price_qp) in enumerate(self.price_q) if price_qp.interest>0 and price>=self.ask])
+
+		return """Bids:
+{}
+
+Asks:
+{}""".format(bids, asks)
+
+	def cancel_order(self, id, price, volume):
+		self.price_q[price].cancel_order(id)
+		#TODO - check for change in bin/ask spread
+
 
 	def enter_limit_buy(self, id, price, volume):
 		'''
@@ -46,9 +61,10 @@ class SimpleOrderBook:
 		volume_to_fill = volume
 		if price <= self.bid:
 			while volume_to_fill > 0 and self.bid >= price:
+				log.debug('enter_limit_sell: volume_to_fill:%s, bid:%s, price:%s ', volume_to_fill, self.bid, price)
 				fulfilling_orders = self.price_q[self.bid].fill_order(volume_to_fill)
 				for (fulfilling_order_id, cross_volume) in fulfilling_orders:
-					order_crosses.append(((fulfilling_order_id, id), self.bid, cross_volume))
+					order_crosses.append(((id,fulfilling_order_id), self.bid, cross_volume))
 					volume_to_fill -= cross_volume
 				while self.price_q[self.bid].interest == 0 and self.bid > self.min_price:
 					self.bid -= self.decrement				
@@ -64,6 +80,9 @@ class BookPriceQ:
 		self.interest = 0 	#sum of interest at this price
 		self.order_q = OrderedDict()
 	
+	def __str__(self):
+		return 'Interest: {}, Orders: {}'.format(self.interest, ','.join(['{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]))
+
 	def add_order(self, order_id, volume):
 		self.interest += volume
 		self.order_q[order_id] = volume
@@ -82,17 +101,19 @@ class BookPriceQ:
 		volume_to_fill = volume
 		fulfilling_orders = []
 		while volume_to_fill > 0 and len(self.order_q)>0:
+			log.debug('  fill_order: volume_to_fill = %s', volume_to_fill)
 			next_order_id = next(iter(self.order_q))
 			next_order_volume = self.order_q[next_order_id]
 			if next_order_volume > volume_to_fill:
+				assert self.order_q[next_order_id] ==next_order_volume
 				self.order_q[next_order_id] = next_order_volume-volume_to_fill
-				fulfilling_orders.add((next_order_id, volume_to_fill))
-				volume_to_fill = 0				
+				fulfilling_orders.append((next_order_id, volume_to_fill))
+				self.interest -= volume_to_fill	
+				volume_to_fill = 0			
 			else:
 				volume_to_fill -= next_order_volume
-				fulfilling_orders.append(self.order_q.popitem())
-		volume_fulfilled = volume - volume_to_fill
-		self.interest -= volume_fulfilled
+				fulfilling_orders.append(self.order_q.popitem(last=False))
+				self.interest -= next_order_volume
 		return fulfilling_orders
 
 def test():
@@ -104,7 +125,6 @@ def test():
 	assert book.bid==10
 	assert book.ask==book.max_price
 
-	#
 	(crossed_orders, entered_order)  = book.enter_limit_buy(2, 11, 3)
 	print(crossed_orders, entered_order)
 	assert len(crossed_orders)==0

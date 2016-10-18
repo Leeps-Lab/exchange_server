@@ -12,7 +12,7 @@ from collections import namedtuple
 from functools import partial
 import datetime
 
-from ouch_messages import OuchClientMessages, OuchServerMessages
+from .ouch_messages import OuchClientMessages, OuchServerMessages
 
 p = configargparse.ArgParser()
 p.add('--port', default=12345)

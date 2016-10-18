@@ -1,5 +1,5 @@
 # https://nasdaqtrader.com/content/technicalsupport/specifications/TradingProducts/OUCH4.2.pdf
-from protocol_message_primitives import *
+from .protocol_message_primitives import *
 
 class OuchFields(ProtocolFieldEnum):
     msg_type = ('c', 'Identifies the type of this message')
