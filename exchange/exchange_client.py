@@ -16,6 +16,8 @@ from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 p = configargparse.ArgParser()
 p.add('--port', default=12345)
 p.add('--host', default='127.0.0.1', help="Address of server")
+p.add('--delay', default=0, type=float, help="Delay in seconds between sending messages")
+p.add('--debug', action='store_true')
 options, args = p.parse_known_args()
 
 
@@ -53,10 +55,17 @@ class Client():
             loop=loop)
             self.reader = reader
             self.writer = writer
-          
-        for index in itertools.count():
+        index = 0
+        while True:
             response = await self.recv()
-            if index % 1000 ==0:
+            index += 1 
+            while not self.reader.at_eof():
+                response = await self.recv()
+                index += 1
+                if index % 1000==0:
+                    print('received {} messages'.format(index))
+            await asyncio.sleep(0.0000001)
+            if index % 1000==0:
                 print('received {} messages'.format(index))
             #log.info('Received msg %s', response)
             #response = await recv()
@@ -83,7 +92,7 @@ class Client():
                 shares=randrange(1,10**6-1),
                 stock=b'AMAZGOOG',
                 price=randrange(1,100),
-                time_in_force=randrange(0,99999),
+                time_in_force=99999,
                 firm=b'OUCH',
                 display=b'N',
                 capacity=b'O',
@@ -96,7 +105,7 @@ class Client():
             await self.send(request)
             if index % 1000 == 0:
                 print('sent {} messages'.format(index))   
-            await asyncio.sleep(0.0001) 
+            await asyncio.sleep(options.delay) 
 
     async def start(self, loop):
         reader, writer = await asyncio.streams.open_connection(
@@ -111,7 +120,8 @@ class Client():
 
 
 def main():
-    log.basicConfig(level=log.INFO)
+
+    log.basicConfig(level=log.INFO if not options.debug else log.DEBUG)
     log.debug(options)
 
     client = Client()

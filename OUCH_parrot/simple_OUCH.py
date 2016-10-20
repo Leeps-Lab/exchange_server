@@ -5,7 +5,7 @@ class OUCHMessage(object):
 	''' Parent class for restricted class of OUCH v4.2 messages
 	See ouch documentation here: http://nasdaqtrader.com/content/technicalsupport/specifications/TradingProducts/OUCH4.2.pdf'''
 
-	buy_sell_indicator_code = {'B': 'Buy', 'S':'Sell'}
+	buy_sell_indicator_code = { 'B': 'Buy', 'S': 'Sell' }
 
 	def encode(self):
 		return struct.pack(self.struct_format_str, *self.fields())

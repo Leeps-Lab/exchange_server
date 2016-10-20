@@ -1,11 +1,8 @@
 from collections import OrderedDict
 import logging as log
 
-class SimpleOrderBook:
-	def __init__(self,
-			min_price = 0, 
-			max_price = 100):
-
+class CDABook:
+	def __init__(self, min_price = 0, max_price = 100):
 		self.min_price = min_price
 		self.max_price = max_price 
 		self.decrement = 1
@@ -15,21 +12,33 @@ class SimpleOrderBook:
 		self.price_q = [ BookPriceQ() for price in range(self.min_price, self.max_price+1, self.decrement)]
 	
 	def __str__(self):
-		bids = '\n'.join(['${} : {}'.format(price, str(price_qp)) for (price, price_qp) in enumerate(self.price_q) if price_qp.interest>0 and price<=self.bid])
-		asks = '\n'.join(['${} : {}'.format(price, str(price_qp)) for (price, price_qp) in enumerate(self.price_q) if price_qp.interest>0 and price>=self.ask])
+		bids = '\n'.join(['   ${} : {}'.format(price, str(price_qp)) for (price, price_qp) in enumerate(self.price_q) if price_qp.interest>0 and price<=self.bid])
+		asks = '\n'.join(['   ${} : {}'.format(price, str(price_qp)) for (price, price_qp) in enumerate(self.price_q) if price_qp.interest>0 and price>=self.ask])
 
-		return """Bids:
+		return """  
+  Bids:
 {}
 
-Asks:
+  Asks:
 {}""".format(bids, asks)
+
 
 	def cancel_order(self, id, price, volume):
 		self.price_q[price].cancel_order(id)
-		#TODO - check for change in bin/ask spread
+		if price == self.bid:
+			self.update_bid()
+		elif price == self.ask:
+			self.update_ask()
 
+	def update_bid(self):
+		while self.price_q[self.bid].interest == 0 and self.bid > self.min_price:
+			self.bid -= self.decrement
 
-	def enter_limit_buy(self, id, price, volume):
+	def update_ask(self):
+		while self.price_q[self.ask].interest == 0 and self.ask < self.max_price:
+			self.ask += self.decrement		
+
+	def enter_buy(self, id, price, volume, enter_into_book):
 		'''
 		Enter a limit order to buy at price price: first, try and fulfill as much as possible, then enter a
 		'''
@@ -42,16 +51,15 @@ Asks:
 				for (fulfilling_order_id, cross_volume) in fulfilling_orders:
 					order_crosses.append(((id, fulfilling_order_id), self.ask, cross_volume))
 					volume_to_fill -= cross_volume
-				while self.price_q[self.ask].interest == 0 and self.ask < self.max_price:
-					self.ask += self.decrement				
-		if volume_to_fill > 0:
+				self.update_ask()			
+		if volume_to_fill > 0 and enter_into_book:
 			self.price_q[price].add_order(id, volume_to_fill)
 			if price > self.bid:
 				self.bid = price
 			entered_order = (id, price, volume_to_fill)
 		return (order_crosses, entered_order) 
 
-	def enter_limit_sell(self, id, price, volume):
+	def enter_sell(self, id, price, volume, enter_into_book):
 		'''
 		Enter a limit order to sell at price price: first try and fulfill as much as possible, then enter the
 		remaining as a limit sell
@@ -66,9 +74,8 @@ Asks:
 				for (fulfilling_order_id, cross_volume) in fulfilling_orders:
 					order_crosses.append(((id,fulfilling_order_id), self.bid, cross_volume))
 					volume_to_fill -= cross_volume
-				while self.price_q[self.bid].interest == 0 and self.bid > self.min_price:
-					self.bid -= self.decrement				
-		if volume_to_fill > 0:
+				self.update_bid()			
+		if volume_to_fill > 0 and enter_into_book:
 			self.price_q[price].add_order(id, volume_to_fill)
 			if price < self.ask:
 				self.ask = price
@@ -81,7 +88,7 @@ class BookPriceQ:
 		self.order_q = OrderedDict()
 	
 	def __str__(self):
-		return 'Interest: {}, Orders: {}'.format(self.interest, ','.join(['{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]))
+		return 'Interest: {}, Orders: {}'.format(self.interest, ', '.join(['{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]))
 
 	def add_order(self, order_id, volume):
 		self.interest += volume
