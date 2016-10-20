@@ -132,4 +132,5 @@ class Exchange:
         raise NotImplementedError()
 
     async def replace_order(self, replace_order_message):
-        raise NotImplementedError()
+        log.error('Replace order ignored.')
+        #raise NotImplementedError()
