@@ -39,13 +39,13 @@ class Exchange:
     async def process_message(self, message):
         if message.message_type is OuchClientMessages.EnterOrder:
             await self.enter_order(message)
-        elif message.message_type is ReplaceOrder:
+        elif message.message_type is OuchClientMessages.ReplaceOrder:
             await self.replace_order(message)
-        elif message.message_type is CancelOrder:
+        elif message.message_type is OuchClientMessages.CancelOrder:
             await self.cancel_order(message)
-        elif message.message_type is ModifyOrder:
+        elif message.message_type is OuchClientMessages.ModifyOrder:
             await self.modify_order(message)
-        elif message.message_type is TradeNow:
+        elif message.message_type is OuchClientMessages.TradeNow:
             raise NotImplementedError()
         else:
             raise NameError("Unknown message type.")
