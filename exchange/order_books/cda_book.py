@@ -56,7 +56,7 @@ class CDABook:
 			self.price_q[price].add_order(id, volume_to_fill)
 			if price > self.bid:
 				self.bid = price
-			entered_order = (id, price, volume_to_fill)
+		entered_order = (id, price, volume_to_fill)
 		return (order_crosses, entered_order) 
 
 	def enter_sell(self, id, price, volume, enter_into_book):

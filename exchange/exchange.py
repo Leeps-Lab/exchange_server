@@ -37,6 +37,7 @@ class Exchange:
         self.loop = loop
 
     async def process_message(self, message):
+        log.debug('Processing message %s', dict(message.iteritems()))
         if message.message_type is OuchClientMessages.EnterOrder:
             await self.enter_order(message)
         elif message.message_type is OuchClientMessages.ReplaceOrder:
@@ -69,6 +70,7 @@ class Exchange:
             #cancel_order_message = cancel_order_from_enter_order( enter_order_message )
             self.loop.call_soon(time_in_force, self.cancel_order( cancel_order_message))
         
+        crossed_orders = []
         if enter_order_message['buy_sell_indicator'] == b'B':
             log.debug('Entering BUY order into order book')
             (crossed_orders, entered_order) = self.order_book.enter_buy(
@@ -89,7 +91,7 @@ class Exchange:
         accepted_response = OuchServerMessages.Accepted(**fields)
         accepted_response.meta = enter_order_message.meta
         await self.order_reply(accepted_response) 
-        crossed_orders = []
+        
         #enter order in book
 
         log.debug("Resulting book: %s", self.order_book)
