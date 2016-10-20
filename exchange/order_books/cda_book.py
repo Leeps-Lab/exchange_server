@@ -2,7 +2,7 @@ from collections import OrderedDict
 import logging as log
 
 class CDABook:
-	def __init__(self, min_price = 0, max_price = 100):
+	def __init__(self, min_price = 0, max_price = 2000000):
 		self.min_price = min_price
 		self.max_price = max_price 
 		self.decrement = 1

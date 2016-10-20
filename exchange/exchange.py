@@ -60,7 +60,6 @@ class Exchange:
         fields['order_state'] = b'L'
     
         time_in_force = fields['time_in_force']
-        print(time_in_force)
         enter_into_book = True if time_in_force > 0 else False
     
         if time_in_force > 0 and time_in_force < 99998:
