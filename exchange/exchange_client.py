@@ -18,6 +18,7 @@ p.add('--port', default=12345)
 p.add('--host', default='127.0.0.1', help="Address of server")
 p.add('--delay', default=0, type=float, help="Delay in seconds between sending messages")
 p.add('--debug', action='store_true')
+p.add('--time_in_force', default=99999, type=int)
 options, args = p.parse_known_args()
 
 
@@ -92,7 +93,7 @@ class Client():
                 shares=randrange(1,10**6-1),
                 stock=b'AMAZGOOG',
                 price=randrange(1,100),
-                time_in_force=99999,
+                time_in_force=options.time_in_force,
                 firm=b'OUCH',
                 display=b'N',
                 capacity=b'O',
@@ -103,6 +104,26 @@ class Client():
             #print('send message: ', request)
             #log.info("Sending Ouch message: %s", request)
             await self.send(request)
+
+            reprequest = OuchClientMessages.ReplaceOrder(
+                existing_order_token='{:014d}'.format(index).encode('ascii'),
+                replacement_order_token='{:014d}'.format(900000000+index).encode('ascii'),
+                buy_sell_indicator=request['buy_sell_indicator'],
+                shares=2*request['shares'],
+                stock=b'AMAZGOOG',
+                price=2*request['price'],
+                time_in_force=options.time_in_force,
+                firm=b'OUCH',
+                display=b'N',
+                capacity=b'O',
+                intermarket_sweep_eligibility=b'N',
+                minimum_quantity=1,
+                cross_type=b'N',
+                customer_type=b' ')
+            #print('send message: ', request)
+            #log.info("Sending Ouch message: %s", request)
+            await self.send(reprequest)
+
             if index % 1000 == 0:
                 print('sent {} messages'.format(index))   
             await asyncio.sleep(options.delay) 

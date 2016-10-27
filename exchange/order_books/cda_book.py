@@ -24,11 +24,32 @@ class CDABook:
 
 
 	def cancel_order(self, id, price, volume):
-		self.price_q[price].cancel_order(id)
-		if price == self.bid:
-			self.update_bid()
-		elif price == self.ask:
-			self.update_ask()
+		'''
+		Cancel all or part of an order. Volume refers to the desired remaining shares to be executed: if it is 0, the order is
+		fully cancelled, otherwise an order of volume volume remains.
+		'''
+		
+		if id in self.price_q[price].order_q:
+			amount_canceled=0
+			current_volume=self.price_q[price].order_q[id]
+			if volume==0: 										#fully cancel
+				self.price_q[price].cancel_order(id)
+				amount_canceled = current_volume
+			elif current_volume >= volume:
+				self.price_q[price].reduce_order(id, volume)		
+				amount_canceled = current_volume - volume
+			else:
+				amount_canceled = 0
+
+			if price == self.bid:
+				self.update_bid()
+			elif price == self.ask:
+				self.update_ask()
+
+			return [(id, amount_canceled)]
+		else:
+			log.debug('No order in the book to cancel, cancel ignored.')
+			return []
 
 	def update_bid(self):
 		while self.price_q[self.bid].interest == 0 and self.bid > self.min_price:
@@ -56,7 +77,7 @@ class CDABook:
 			self.price_q[price].add_order(id, volume_to_fill)
 			if price > self.bid:
 				self.bid = price
-		entered_order = (id, price, volume_to_fill)
+			entered_order = (id, price, volume_to_fill)
 		return (order_crosses, entered_order) 
 
 	def enter_sell(self, id, price, volume, enter_into_book):
@@ -97,6 +118,11 @@ class BookPriceQ:
 	def cancel_order(self, order_id):
 		self.interest -= self.order_q[order_id]
 		del self.order_q[order_id]
+
+	def reduce_order(self, order_id, new_volume):
+		assert new_volume <= self.order_q[order_id]
+		self.order_q[order_id] = new_volume
+		self.interest -= (volume - new_volume)
 
 	def fill_order(self, volume):
 		'''
