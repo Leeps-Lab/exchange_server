@@ -121,6 +121,7 @@ class BookPriceQ:
 
 	def reduce_order(self, order_id, new_volume):
 		assert new_volume <= self.order_q[order_id]
+		volume = self.order_q[order_id]
 		self.order_q[order_id] = new_volume
 		self.interest -= (volume - new_volume)
 

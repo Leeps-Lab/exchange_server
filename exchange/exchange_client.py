@@ -108,21 +108,36 @@ class Client():
             reprequest = OuchClientMessages.ReplaceOrder(
                 existing_order_token='{:014d}'.format(index).encode('ascii'),
                 replacement_order_token='{:014d}'.format(900000000+index).encode('ascii'),
-                buy_sell_indicator=request['buy_sell_indicator'],
                 shares=2*request['shares'],
-                stock=b'AMAZGOOG',
                 price=2*request['price'],
                 time_in_force=options.time_in_force,
-                firm=b'OUCH',
                 display=b'N',
-                capacity=b'O',
                 intermarket_sweep_eligibility=b'N',
-                minimum_quantity=1,
-                cross_type=b'N',
-                customer_type=b' ')
+                minimum_quantity=1)
             #print('send message: ', request)
             #log.info("Sending Ouch message: %s", request)
             await self.send(reprequest)
+
+            reprequestii = OuchClientMessages.ReplaceOrder(
+                existing_order_token='{:014d}'.format(900000000+index).encode('ascii'),
+                replacement_order_token='{:014d}'.format(910000000+index).encode('ascii'),
+                shares=2*request['shares'],
+                price=request['price'],
+                time_in_force=options.time_in_force,
+                display=b'N',
+                intermarket_sweep_eligibility=b'N',
+                minimum_quantity=1)
+            #print('send message: ', request)
+            #log.info("Sending Ouch message: %s", request)
+            await self.send(reprequestii)
+
+
+            cancelhalf = OuchClientMessages.CancelOrder(
+                order_token='{:014d}'.format(910000000+index).encode('ascii'),
+                shares=request['shares'])
+            #print('send message: ', request)
+            #log.info("Sending Ouch message: %s", request)
+            await self.send(cancelhalf)            
 
             if index % 1000 == 0:
                 print('sent {} messages'.format(index))   
