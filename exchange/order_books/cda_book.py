@@ -87,7 +87,7 @@ class CDABook:
 				
 				fulfilling_orders = price_q.fill_order(volume_to_fill)
 				for (fulfilling_order_id, cross_volume) in fulfilling_orders:
-					order_crosses.append(((id, fulfilling_order_id), self.price_q.price, cross_volume))
+					order_crosses.append(((id, fulfilling_order_id), price_q.price, cross_volume))
 					volume_to_fill -= cross_volume
 				
 				if price_q.interest==0:

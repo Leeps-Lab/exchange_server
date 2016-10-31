@@ -161,7 +161,7 @@ class Exchange:
                 id = cancel_order_message['order_token'],
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
-                buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator']))
+                buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
             cancel_messages = [  order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
             self.outgoing_messages.extend(cancel_messages) 
@@ -198,7 +198,8 @@ class Exchange:
             cancelled_orders = self.order_book.cancel_order(
                 id = replace_order_message['existing_order_token'],
                 price = store_entry.first_message['price'],
-                volume = 0)  # Fully cancel
+                volume = 0,
+                buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])  # Fully cancel
             
             if len(cancelled_orders)==0:
                 log.debug('No orders cancelled, siliently ignoring')
