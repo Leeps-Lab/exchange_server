@@ -95,8 +95,8 @@ class Exchange:
 
     def process_cross(self, id, fulfilling_order_id, price, volume, timestamp, liquidity_flag = b'?'):
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
-        order_message = self.order_store.orders[id].original_message
-        fulfilling_order_message = self.order_store.orders[fulfilling_order_id].original_message
+        order_message = self.order_store.orders[id].first_message
+        fulfilling_order_message = self.order_store.orders[fulfilling_order_id].first_message
         match_number = self.next_match_number
         self.next_match_number += 1
         r1 = OuchServerMessages.Executed(
@@ -123,7 +123,10 @@ class Exchange:
 
     def enter_order_atomic(self, enter_order_message, executed_quantity = 0):
         timestamp = nanoseconds_since_midnight()
-        order_stored = self.order_store.store_order( enter_order_message['order_token'], enter_order_message, executed_quantity)
+        order_stored = self.order_store.store_order( 
+            id = enter_order_message['order_token'], 
+            message = enter_order_message, 
+            executed_quantity = executed_quantity)
         if not order_stored:
             log.debug('Order already stored with id %s, order ignored', enter_order_message['order_token'])
             return []
@@ -150,15 +153,19 @@ class Exchange:
 
     def cancel_order_atomic(self, cancel_order_message, reason=b'U'):
         timestamp = nanoseconds_since_midnight()
-        store_entry = self.order_store.orders[cancel_order_message['order_token']]
-        cancelled_orders = self.order_book.cancel_order(
-            id = cancel_order_message['order_token'],
-            price = store_entry.original_message['price'],
-            volume = cancel_order_message['shares'],
-            buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-        cancel_messages = [  order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
-                    for (id, amount_canceled) in cancelled_orders ]
-        self.outgoing_messages.extend(cancel_messages) 
+        if cancel_order_message['order_token'] not in self.order_store.orders:
+            log.debug('No such order to cancel, ignored')
+        else:
+            store_entry = self.order_store.orders[cancel_order_message['order_token']]
+            cancelled_orders = self.order_book.cancel_order(
+                id = cancel_order_message['order_token'],
+                price = store_entry.first_message['price'],
+                volume = cancel_order_message['shares'],
+                buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator']))
+            cancel_messages = [  order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
+                        for (id, amount_canceled) in cancelled_orders ]
+            self.outgoing_messages.extend(cancel_messages) 
+
 
       # """
         # NASDAQ may respond to the Replace Order Message in several ways:
@@ -190,7 +197,7 @@ class Exchange:
             log.debug('store_entry: %s', store_entry)
             cancelled_orders = self.order_book.cancel_order(
                 id = replace_order_message['existing_order_token'],
-                price = store_entry.original_message['price'],
+                price = store_entry.first_message['price'],
                 volume = 0)  # Fully cancel
             
             if len(cancelled_orders)==0:
@@ -198,21 +205,25 @@ class Exchange:
                 return []
             else:
                 (id_cancelled, amount_cancelled) = cancelled_orders[0]
-                original_message = store_entry.original_message
-                shares_diff = replace_order_message['shares'] - original_message['shares'] 
+                original_enter_message = store_entry.original_enter_message
+                first_message = store_entry.first_message
+                shares_diff = replace_order_message['shares'] - first_message['shares'] 
                 liable_shares = max(0, amount_cancelled + shares_diff )
                 if liable_shares == 0:
                     log.debug('No remaining liable shares on the book to replace')
                     #send cancel
                 else:
-                    self.order_store.store_order(replace_order_message['replacement_order_token'], replace_order_message)
+                    self.order_store.store_order(
+                            id = replace_order_message['replacement_order_token'], 
+                            message = replace_order_message,
+                            original_enter_message = original_enter_message)
                     time_in_force = replace_order_message['time_in_force']
                     enter_into_book = True if time_in_force > 0 else False    
                     if time_in_force > 0 and time_in_force < 99998:     #schedule a cancellation at some point in the future
                         cancel_order_message = cancel_order_from_replace_order( replace_order_message )
                         self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message))
                     
-                    enter_order_func = self.order_book.enter_buy if original_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
+                    enter_order_func = self.order_book.enter_buy if original_enter_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
                     (crossed_orders, entered_order) = enter_order_func(
                             replace_order_message['replacement_order_token'],
                             replace_order_message['price'],
@@ -223,12 +234,12 @@ class Exchange:
                     r = OuchServerMessages.Replaced(
                             timestamp=timestamp,
                             replacement_order_token = replace_order_message['replacement_order_token'],
-                            buy_sell_indicator=original_message['buy_sell_indicator'],
+                            buy_sell_indicator=original_enter_message['buy_sell_indicator'],
                             shares=liable_shares,
-                            stock=original_message['stock'],
+                            stock=original_enter_message['stock'],
                             price=replace_order_message['price'],
                             time_in_force=replace_order_message['time_in_force'],
-                            firm=original_message['firm'],
+                            firm=original_enter_message['firm'],
                             display=replace_order_message['display'],
                             order_reference_number=next(order_ref_numbers), 
                             capacity=b'*',

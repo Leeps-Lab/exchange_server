@@ -10,7 +10,7 @@ class OrderStore:
 	def __init__(self):
 		self.orders = {}
 
-	def store_order(self, id, message, executed_quantity = 0):
+	def store_order(self, id, message, original_enter_message = None, executed_quantity = 0):
 		'''
 		Called to create a new order store entry, either with an EnterOrder message, or a replace order message that creates a new order.
 
@@ -20,7 +20,7 @@ class OrderStore:
 			log.info('Ignoring store_order command: id %s already in the order store', id)
 			return False
 		else:
-			self.orders[id] = OrderStoreEntry(message, executed_quantity)
+			self.orders[id] = OrderStoreEntry(message, original_enter_message = original_enter_message, executed_quantity = executed_quantity)
 			return self.orders[id]
 
 	def add_to_order(self, id, message):
@@ -37,10 +37,12 @@ class OrderStore:
 		self.orders[id].executed_quantity += quantity
 
 class OrderStoreEntry:
-	def __init__(self, original_message, executed_quantity):
+	def __init__(self, message,  executed_quantity, original_enter_message = None):
 		self.history = []
 		self.executed_quantity = executed_quantity
-		self.original_message = original_message
+		self.first_message = message
+		self.original_enter_message = original_enter_message if original_enter_message is not None else message
+		self.history.append(message)
 
 	def add_to_order(self, message):
 		self.history.append(message)
