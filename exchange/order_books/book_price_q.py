@@ -50,4 +50,4 @@ class BookPriceQ:
 				volume_to_fill -= next_order_volume
 				fulfilling_orders.append(self.order_q.popitem(last=False))
 				self.interest -= next_order_volume
-		return fulfilling_orders
+		return (volume - volume_to_fill, fulfilling_orders)

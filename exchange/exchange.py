@@ -19,55 +19,7 @@ from exchange.order_store import OrderStore
 ##      
 ##      
 
-DEFAULT_LIQUIDITY_FLAG = b'?'
 
-order_ref_numbers = itertools.count(1, 2)  # odds
-
-
-def accepted_from_enter(enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
-    m=OuchServerMessages.Accepted(
-        timestamp=timestamp,
-        order_reference_number=order_reference_number, 
-        order_state=order_state,
-        bbo_weight_indicator=bbo_weight_indicator,
-        order_token=enter_order_message['order_token'],
-        buy_sell_indicator=enter_order_message['buy_sell_indicator'],
-        shares=enter_order_message['shares'],
-        stock=enter_order_message['stock'],
-        price=enter_order_message['price'],
-        time_in_force=enter_order_message['time_in_force'],
-        firm=enter_order_message['firm'],
-        display=enter_order_message['display'],
-        capacity=enter_order_message['capacity'],
-        intermarket_sweep_eligibility=enter_order_message['intermarket_sweep_eligibility'],
-        minimum_quantity=enter_order_message['minimum_quantity'],
-        cross_type=enter_order_message['cross_type'])
-    m.meta = enter_order_message.meta
-    return m
-
-def cancel_order_from_enter_order(enter_order_message, reason = b'U'):
-    m = OuchClientMessages.CancelOrder(
-        order_token = enter_order_message['order_token'],
-        shares = 0
-        )
-    m.meta = enter_order_message.meta
-    return m
-
-def cancel_order_from_replace_order(replace_order_message, reason = b'U'):
-    m = OuchClientMessages.CancelOrder(
-        order_token = replace_order_message['replacement_order_token'],
-        shares = 0
-        )
-    m.meta = replace_order_message.meta
-    return m
-
-def order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason=b'U'):
-    m = OuchServerMessages.Canceled(timestamp = timestamp,
-                        order_token = cancel_order_message['order_token'],
-                        decrement_shares = amount_canceled,
-                        reason = reason)
-    m.meta = cancel_order_message.meta
-    return m
 
 class Exchange:
     def __init__(self, order_book, order_reply, loop):
@@ -86,12 +38,58 @@ class Exchange:
         self.next_match_number = 0
         self.loop = loop
         self.outgoing_messages = deque()
+        self.order_ref_numbers = itertools.count(1, 2)  # odds
 
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
             OuchClientMessages.ReplaceOrder: self.replace_order_atomic,
             OuchClientMessages.CancelOrder: self.cancel_order_atomic,
             OuchClientMessages.ModifyOrder: None}
+
+    def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
+        m=OuchServerMessages.Accepted(
+            timestamp=timestamp,
+            order_reference_number=order_reference_number, 
+            order_state=order_state,
+            bbo_weight_indicator=bbo_weight_indicator,
+            order_token=enter_order_message['order_token'],
+            buy_sell_indicator=enter_order_message['buy_sell_indicator'],
+            shares=enter_order_message['shares'],
+            stock=enter_order_message['stock'],
+            price=enter_order_message['price'],
+            time_in_force=enter_order_message['time_in_force'],
+            firm=enter_order_message['firm'],
+            display=enter_order_message['display'],
+            capacity=enter_order_message['capacity'],
+            intermarket_sweep_eligibility=enter_order_message['intermarket_sweep_eligibility'],
+            minimum_quantity=enter_order_message['minimum_quantity'],
+            cross_type=enter_order_message['cross_type'])
+        m.meta = enter_order_message.meta
+        return m
+
+    def cancel_order_from_enter_order(self, enter_order_message, reason = b'U'):
+        m = OuchClientMessages.CancelOrder(
+            order_token = enter_order_message['order_token'],
+            shares = 0
+            )
+        m.meta = enter_order_message.meta
+        return m
+
+    def cancel_order_from_replace_order(self, replace_order_message, reason = b'U'):
+        m = OuchClientMessages.CancelOrder(
+            order_token = replace_order_message['replacement_order_token'],
+            shares = 0
+            )
+        m.meta = replace_order_message.meta
+        return m
+
+    def order_cancelled_from_cancel(self, cancel_order_message, timestamp, amount_canceled, reason=b'U'):
+        m = OuchServerMessages.Canceled(timestamp = timestamp,
+                            order_token = cancel_order_message['order_token'],
+                            decrement_shares = amount_canceled,
+                            reason = reason)
+        m.meta = cancel_order_message.meta
+        return m
 
     def process_cross(self, id, fulfilling_order_id, price, volume, timestamp, liquidity_flag = b'?'):
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
@@ -134,7 +132,7 @@ class Exchange:
             time_in_force = enter_order_message['time_in_force']
             enter_into_book = True if time_in_force > 0 else False    
             if time_in_force > 0 and time_in_force < 99998:     #schedule a cancellation at some point in the future
-                cancel_order_message = cancel_order_from_enter_order( enter_order_message )
+                cancel_order_message = self.cancel_order_from_enter_order( enter_order_message )
                 self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message))
             
             enter_order_func = self.order_book.enter_buy if enter_order_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
@@ -144,7 +142,9 @@ class Exchange:
                     enter_order_message['shares'],
                     enter_into_book)
             log.debug("Resulting book: %s", self.order_book)
-            m = accepted_from_enter(enter_order_message, order_reference_number= next(order_ref_numbers) ,timestamp=timestamp)
+            m=self.accepted_from_enter(enter_order_message, 
+                order_reference_number=next(self.order_ref_numbers),
+                timestamp=timestamp)
             self.order_store.add_to_order(m['order_token'], m)
             self.outgoing_messages.append(m)
             cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
@@ -162,10 +162,9 @@ class Exchange:
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            cancel_messages = [  order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
+            cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
             self.outgoing_messages.extend(cancel_messages) 
-
 
       # """
         # NASDAQ may respond to the Replace Order Message in several ways:
@@ -242,7 +241,7 @@ class Exchange:
                             time_in_force=replace_order_message['time_in_force'],
                             firm=original_enter_message['firm'],
                             display=replace_order_message['display'],
-                            order_reference_number=next(order_ref_numbers), 
+                            order_reference_number=next(self.order_ref_numbers), 
                             capacity=b'*',
                             intermarket_sweep_eligibility = replace_order_message['intermarket_sweep_eligibility'],
                             minimum_quantity = replace_order_message['minimum_quantity'],
@@ -262,14 +261,17 @@ class Exchange:
                                                     timestamp=timestamp)]
                     self.outgoing_messages.extend(cross_messages)
 
+    async def send_outgoing_messages(self):
+        while len(self.outgoing_messages)>0:
+            m = self.outgoing_messages.popleft()
+            log.debug('Sending message %s', dict(m.iteritems()))
+            await self.order_reply(m)
+
     async def process_message(self, message):
         log.debug('Processing message %s', dict(message.iteritems()))
         if message.message_type in self.handlers:
             self.handlers[message.message_type](message)
-            while len(self.outgoing_messages)>0:
-                m = self.outgoing_messages.popleft()
-                log.debug('Sending message %s', dict(m.iteritems()))
-                await self.order_reply(m)
+            self.send_outgoing_messages
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
