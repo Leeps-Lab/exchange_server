@@ -11,6 +11,8 @@ p = configargparse.getArgParser()
 p.add('--port', default=12345)
 p.add('--host', default='127.0.0.1', help="Address to bind to / listen on")
 p.add('--debug', action='store_true')
+p.add('--mechanism', choices=['cda', 'fba'], default = 'cda')
+p.add('--interval', default = None, type=float, help="(FBA) Interval between batch auctions in seconds")
 options, args = p.parse_known_args()
 
 
@@ -21,10 +23,19 @@ def main():
 
     loop = asyncio.get_event_loop()
     server = ProtocolMessageServer(OuchClientMessages)
-    book = CDABook()
-    exchange = Exchange(order_book = book,
-                        order_reply = server.send_server_response,
-                        loop = loop)
+    
+    if options.mechanism == 'cda':        
+        book = CDABook()
+        exchange = Exchange(order_book = book,
+                            order_reply = server.send_server_response,
+                            loop = loop)
+    elif options.mechanism == 'fba':
+        book = FBABook()
+        exchange = FBAExchange(order_book = book,
+                            order_reply = server.send_server_response,
+                            loop = loop, 
+                            interval = options.interval)
+    
     server.register_listener(exchange.process_message)
     server.start(loop)
     try:
