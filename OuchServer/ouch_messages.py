@@ -74,7 +74,7 @@ LookupByHeaderBytesMixin = create_attr_lookup_mixin(
     'LookupByHeaderBytesMixin_ClientMsgs', 'header_bytes')
 class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
                          DuplicateFreeEnum):
-    EnterOrder = ('{buy_sell_indicator}{shares}x{stock}@{price}',
+    EnterOrder = ('{order_token}:{buy_sell_indicator}{shares}x{stock}@{price}',
             {'msg_type': b'O'},
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
