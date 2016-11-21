@@ -53,7 +53,7 @@ class OuchPayloadBase(NamedFieldSequence):
         if self._display_fmt is None:
             return super().__str__()
         else:
-            return self._display_fmt.format(**dict(self))
+            return self._display_fmt.format_map(self)
 
 class OuchMessage(ProtocolMessage):
     _HeaderCls = OuchHeader

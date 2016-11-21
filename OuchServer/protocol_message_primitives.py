@@ -80,8 +80,6 @@ class NamedFieldSequence(object, metaclass=NamedFieldSequenceSerializerMeta):
             assert getattr(self, slot) is not None, 'slot %s has value None' % (slot)
         return self._struct_formatter.pack(
             *(getattr(self, slot) for slot in self.__slots__))
-    def __dict__(self):
-        return dict((s, getattr(self, s)) for s in self.__slots__)
 
     def __len__(self):
         return len(self.__slots__)
@@ -151,10 +149,6 @@ class ProtocolMessage(object):
 
     def __bytes__(self):
         return bytes(self._message_type_spec.header) + bytes(self.payload)
-    def __dict__(self):
-        d = dict(self.payload)
-        d['header'] = bytes(self.header)
-        return d
 
     def __len__(self):
         return len(self.payload)
