@@ -41,7 +41,7 @@ class OuchHeader(NamedFieldSequence):
     _protocol_fields = OuchFields
     
     def __str__(self):
-        return str(self.msg_type)
+        return self.msg_type.decode('ASCII')
 
 
 class OuchPayloadBase(NamedFieldSequence):
@@ -53,7 +53,10 @@ class OuchPayloadBase(NamedFieldSequence):
         if self._display_fmt is None:
             return super().__str__()
         else:
-            return self._display_fmt.format_map(self)
+            return self._display_fmt.format_map(
+                {k: (s.decode('ASCII') if isinstance(s, bytes) else s)
+                 for (k, s) in self.iteritems()}
+            )
 
 class OuchMessage(ProtocolMessage):
     _HeaderCls = OuchHeader
