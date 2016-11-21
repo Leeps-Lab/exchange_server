@@ -80,7 +80,9 @@ class NamedFieldSequence(object, metaclass=NamedFieldSequenceSerializerMeta):
             assert getattr(self, slot) is not None, 'slot %s has value None' % (slot)
         return self._struct_formatter.pack(
             *(getattr(self, slot) for slot in self.__slots__))
-    
+    def __dict__(self):
+        return dict((s, getattr(self, s)) for s in self.__slots__)
+
     def __len__(self):
         return len(self.__slots__)
     def __iter__(self):
@@ -106,6 +108,16 @@ class NamedFieldSequence(object, metaclass=NamedFieldSequenceSerializerMeta):
     def __contains__(self, key):
         return key in self.__slots__
     
+    def __repr__(self):
+        rep = ('NamedFieldSequence(' + ', '
+                   .join('{key}={self[key]!r}' for key in self.__slots__) +
+               ')')
+        return rep
+
+    def __str__(self):
+        return ('[' + ', '
+                .join(self[key] for key in self.__slots__) +
+                ']')
 
 class ProtocolMessage(object):
     _HeaderCls = None
@@ -139,7 +151,11 @@ class ProtocolMessage(object):
 
     def __bytes__(self):
         return bytes(self._message_type_spec.header) + bytes(self.payload)
-        
+    def __dict__(self):
+        d = dict(self.payload)
+        d['header'] = bytes(self.header)
+        return d
+
     def __len__(self):
         return len(self.payload)
     def __iter__(self):
@@ -155,6 +171,17 @@ class ProtocolMessage(object):
     def __contains__(self, key):
         return key in self.payload
     
+    def __repr__(self):
+        payload_rep = repr(self.payload)
+        payload_rep = payload_rep.partition('(')[-1]
+        payload_rep = payload_rep.rpartition(')')[0]
+        rep = ('ProtocolMessage({message_type_spec}, {payload_rep})'
+               .format(type(self._message_type_spec), payload_rep))
+        return rep
+
+    def __str__(self):
+        return '{self.header!s}: {self.payload!s}'.format(self=self)
+
 class MessageTypeSpec(object):
     _MessageCls = None
 
@@ -200,6 +227,21 @@ class MessageTypeSpec(object):
     def payload_size(self):
         return self._PayloadCls.size
         
+    def __repr__(self):
+        header_spec = ('[' + ', '.join(repr(self._header[key])
+                                       for key in self._header.__slots__) +
+                       ']')
+        payload_spec = '[' + ', '.join(self._PayloadCls.__slots__) + ']'
+        rep = ('MessageTypeSpec({header_spec}, {payload_spec}, name={name!r})'
+               .format(header_spec=header_spec, payload_spec=payload_spec,
+                       payload_name=self._PayloadCls.__class__.__name__))
+        return rep
+
+    def __str__(self):
+        return ('{self._header!s}: {field_names}'
+                .format(self=self,
+                        field_names=', '.join(self._PayloadCls.__slots__)))
+
 def create_attr_lookup_mixin(cls_name, attr_name):
     lookup_table_name = '_{}_lookup_table'.format(attr_name)
 
