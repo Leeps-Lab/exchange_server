@@ -5,12 +5,15 @@ from functools import partial
 from OuchServer.ouch_server import ProtocolMessageServer
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 from exchange.order_books.cda_book import CDABook
+from exchange.order_books.fba_book import FBABook
 from exchange.exchange import Exchange
+from exchange.fba_exchange import FBAExchange
 
 p = configargparse.getArgParser()
 p.add('--port', default=12345)
 p.add('--host', default='127.0.0.1', help="Address to bind to / listen on")
 p.add('--debug', action='store_true')
+p.add('--logfile', default=None, type=str)
 p.add('--mechanism', choices=['cda', 'fba'], default = 'cda')
 p.add('--interval', default = None, type=float, help="(FBA) Interval between batch auctions in seconds")
 options, args = p.parse_known_args()
@@ -19,7 +22,8 @@ options, args = p.parse_known_args()
 def main():    
     log.basicConfig(level= log.DEBUG if options.debug else log.INFO,
         format = "[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
-        datefmt = '%H:%M:%S')
+        datefmt = '%H:%M:%S',
+        filename = options.logfile)
 
     loop = asyncio.get_event_loop()
     server = ProtocolMessageServer(OuchClientMessages)
@@ -35,11 +39,15 @@ def main():
                             order_reply = server.send_server_response,
                             loop = loop, 
                             interval = options.interval)
+        exchange.start()
     
     server.register_listener(exchange.process_message)
     server.start(loop)
+
     try:
+        print('Running forever')
         loop.run_forever()
+        print('Done running')
     finally:
         loop.close()
 
