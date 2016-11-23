@@ -264,14 +264,14 @@ class Exchange:
     async def send_outgoing_messages(self):
         while len(self.outgoing_messages)>0:
             m = self.outgoing_messages.popleft()
-            log.debug('Sending message %s', dict(m.iteritems()))
+            log.debug('Sending message %s', m)
             await self.order_reply(m)
 
     async def process_message(self, message):
-        log.debug('Processing message %s', dict(message.iteritems()))
+        log.debug('Processing message %s', message)
         if message.message_type in self.handlers:
             self.handlers[message.message_type](message)
-            self.send_outgoing_messages
+            await self.send_outgoing_messages()
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
