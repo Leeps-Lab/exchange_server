@@ -14,7 +14,6 @@ class FBAExchange(Exchange):
 
     def run_batch_atomic(self):
         timestamp = nanoseconds_since_midnight()
-        log.debug("Running batch at timestamp=%s", timestamp)
         crossed_orders = self.order_book.batch_process()
         cross_messages = [m for ((id, fulfilling_order_id), price, volume) 
                                             in crossed_orders 
@@ -26,6 +25,8 @@ class FBAExchange(Exchange):
 
     async def run_batch_repeating(self):
         while True:
+            log.debug('Starting batch at %s', self.loop.time())
             self.run_batch_atomic()
             await self.send_outgoing_messages()
-            await asyncio.sleep(self.interval)
+            log.debug('Ended batch at %s', self.loop.time())
+            await asyncio.sleep(self.interval - (self.loop.time() % self.interval))

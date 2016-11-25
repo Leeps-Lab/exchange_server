@@ -6,6 +6,36 @@ import logging as log
 MIN_BID = 0
 MAX_ASK = 2000000000
 
+def merge(ait, bit, key):
+    a=None
+    b=None
+    try:
+        a = next(ait)
+    except StopIteration:
+        yield from bit
+        return
+    if a is not None:
+        try:
+            b = next(bit)
+        except StopIteration:
+            yield from ait
+            return
+
+        while b is not None:
+            try:
+                try:
+                    while(key(a) <= key(b)):
+                        yield a
+                        a = next(ait)
+                except StopIteration:
+                    yield from bit
+                    return
+
+                yield b
+                b = next(bit)
+            except StopIteration:
+                yield from ait 
+                return
 
 class FBABook:
     def __init__(self):
@@ -71,19 +101,23 @@ class FBABook:
 
     def batch_process(self):
         log.debug('Running batch auction..')
+        log.debug('Order book=%s', self)
         asks_volume = sum([price_book.interest for price_book in self.asks.ascending_items()])
-        all_orders_descending = heapq.merge(
-            self.asks.descending_items(), 
+        all_orders_descending = merge(
+            self.asks.descending_items(),
             self.bids.ascending_items(), 
-            key= lambda bpq: bpq.price, 
-            reverse=True)
+            key= lambda bpq: -bpq.price)
+        log.debug('Ask prices=%s:%s, bid prices=%s:%s', 
+            [p.price for p in self.asks.descending_items()], 
+            [p.price for p in self.asks.ascending_items()],
+            [p.price for p in self.bids.ascending_items()],
+            [p.price for p in self.bids.descending_items()])
+        assert len([p.price for p in self.asks.descending_items()])==len([p.price for p in self.asks.ascending_items()]) 
         
         orders_volume = 0
         clearing_price = None
 
         log.debug('Calculating clearing price..')
-        log.debug('All orders descenting: %s', all_orders_descending)
-        log.debug('asks_volume: %s', asks_volume)
         for bpq in all_orders_descending:
             if orders_volume >= asks_volume:
                 break

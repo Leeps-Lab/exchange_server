@@ -45,9 +45,7 @@ def main():
     server.start(loop)
 
     try:
-        print('Running forever')
         loop.run_forever()
-        print('Done running')
     finally:
         loop.close()
 
