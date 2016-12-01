@@ -266,6 +266,7 @@ class Exchange:
             m = self.outgoing_messages.popleft()
             log.debug('Sending message %s', m)
             await self.order_reply(m)
+            log.debug('Sent message %s', m)
 
     async def process_message(self, message):
         log.debug('Processing message %s', message)
