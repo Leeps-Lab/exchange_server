@@ -11,8 +11,11 @@ import itertools
 from collections import namedtuple
 from functools import partial
 import datetime
+import pytz
 
 from .ouch_messages import OuchClientMessages, OuchServerMessages
+
+DEFAULT_TIMEZONE = pytz.timezone('US/Pacific')
 
 p = configargparse.ArgParser()
 p.add('--port', default=12345)
@@ -131,8 +134,8 @@ class ProtocolMessageServer(object):
             loop.run_until_complete(self.server.wait_closed())
             self.server = None
 
-def nanoseconds_since_midnight():
-    now = datetime.datetime.now()
+def nanoseconds_since_midnight(tz=DEFAULT_TIMEZONE):
+    now = datetime.datetime.now(tz=tz)
     timestamp = 0  # since midnight
     timestamp += now.hour
     timestamp *= 60  # hours -> minutes
