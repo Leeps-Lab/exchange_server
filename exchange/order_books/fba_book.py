@@ -87,7 +87,9 @@ class FBABook:
         if enter_into_book:
             self.bids[price].add_order(id, volume)
             entered_order = (id, price, volume)
-            return ([], entered_order) 
+            return ([], entered_order)
+        else:
+            return ([], None)
 
     def enter_sell(self, id, price, volume, enter_into_book):
         '''
@@ -97,7 +99,8 @@ class FBABook:
             self.asks[price].add_order(id, volume)
             entered_order = (id, price, volume)
             return ([], entered_order) 
-
+        else:
+            return ([], None)
 
     def batch_process(self):
         log.debug('Running batch auction..')
