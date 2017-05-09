@@ -14,6 +14,8 @@ p.add('--port', default=12345)
 p.add('--host', default='127.0.0.1', help="Address to bind to / listen on")
 p.add('--debug', action='store_true')
 p.add('--logfile', default=None, type=str)
+p.add('--inputlogfile', default=None, type=str)
+p.add('--outputlogfile', default=None, type=str)
 p.add('--mechanism', choices=['cda', 'fba'], default = 'cda')
 p.add('--interval', default = None, type=float, help="(FBA) Interval between batch auctions in seconds")
 options, args = p.parse_known_args()
@@ -37,6 +39,7 @@ def main():
         book = FBABook()
         exchange = FBAExchange(order_book = book,
                             order_reply = server.send_server_response,
+                            message_broadcast = server.broadcast_server_message,
                             loop = loop, 
                             interval = options.interval)
         exchange.start()

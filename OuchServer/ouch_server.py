@@ -96,6 +96,12 @@ class ProtocolMessageServer(object):
         client_writer = self.clients[client_token].writer
         client_writer.write(bytes(server_msg))
         await client_writer.drain()
+
+    async def broadcast_server_message(self, server_msg):
+        for client in self.clients.values():
+            client.writer.write(bytes(server_msg))
+        for client in self.clients.values():
+            await client.writer.drain()
     
     def register_listener(self, callback):
         listener_token = next(self._tokens)

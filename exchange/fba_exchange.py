@@ -2,6 +2,8 @@ import logging as log
 import asyncio
 from exchange.exchange import Exchange
 from OuchServer.ouch_server import nanoseconds_since_midnight
+from OuchServer.ouch_messages import OuchServerMessages
+
 
 
 class FBAExchange(Exchange):
@@ -26,7 +28,16 @@ class FBAExchange(Exchange):
     async def run_batch_repeating(self):
         while True:
             log.debug('Starting batch at %s', self.loop.time())
+            timestamp = nanoseconds_since_midnight()
+            await self.message_broadcast(
+                OuchServerMessages.SystemEvent(
+                    event_code=b'B',
+                    timestamp=timestamp))
             self.run_batch_atomic()
+            await self.message_broadcast(
+                OuchServerMessages.SystemEvent(
+                    event_code=b'P',
+                    timestamp=nanoseconds_since_midnight()))
             await self.send_outgoing_messages()
             log.debug('Ended batch at %s', self.loop.time())
             await asyncio.sleep(self.interval - (self.loop.time() % self.interval))

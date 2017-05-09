@@ -11,7 +11,7 @@ import logging as log
 from random import randrange
 import itertools
 
-from ouch_messages import OuchClientMessages, OuchServerMessages
+from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 
 p = configargparse.ArgParser()
 p.add('--port', default=12345)

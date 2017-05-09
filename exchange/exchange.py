@@ -22,7 +22,7 @@ from exchange.order_store import OrderStore
 
 
 class Exchange:
-    def __init__(self, order_book, order_reply, loop):
+    def __init__(self, order_book, order_reply, loop, message_broadcast = None):
         '''
         order_book - the book!
         order_reply - post office reply function, takes in 
@@ -35,6 +35,7 @@ class Exchange:
         self.order_store = OrderStore()
         self.order_book = order_book
         self.order_reply = order_reply
+        self.message_broadcast = message_broadcast
         self.next_match_number = 0
         self.loop = loop
         self.outgoing_messages = deque()
