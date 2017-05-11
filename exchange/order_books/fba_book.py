@@ -131,36 +131,37 @@ class FBABook:
 
         matches = []
         ask_it = self.asks.ascending_items()
-        try:
-            ask_node = next(ask_it)
-            ask_price = ask_node.price
+        if clearing_price is not None:
+            try:
+                ask_node = next(ask_it)
+                ask_price = ask_node.price
 
-            #iterate over bids starting with highest
-            for bid_node in self.bids.ascending_items():
-                bid_price = bid_node.price
-                if bid_price<clearing_price or ask_price>clearing_price:
-                    break
-                else:
-                    for (bid_id, volume) in list(bid_node.order_q.items()):
-                        volume_filled = 0
-                        while volume_filled < volume and ask_price <= clearing_price:
-                            (filled, fulfilling_orders) = ask_node.fill_order(volume-volume_filled)
-                            volume_filled += filled
-                            matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
-                            if volume_filled < volume:
-                                self.asks.remove(ask_node.price)
-                                ask_node = next(ask_it)
-                                ask_price = ask_node.price
-                        #update bid in book
-                        assert volume_filled<=volume
-                        if volume_filled==volume:
-                            bid_node.cancel_order(bid_id)
-                            if bid_node.interest == 0:
-                                self.bids.remove(bid_node.price)
-                        elif volume_filled >0:
-                            bid_node.reduce_order(bid_id, volume - volume_filled)
-        except StopIteration:
-            pass
+                #iterate over bids starting with highest
+                for bid_node in self.bids.ascending_items():
+                    bid_price = bid_node.price
+                    if bid_price<clearing_price or ask_price>clearing_price:
+                        break
+                    else:
+                        for (bid_id, volume) in list(bid_node.order_q.items()):
+                            volume_filled = 0
+                            while volume_filled < volume and ask_price <= clearing_price:
+                                (filled, fulfilling_orders) = ask_node.fill_order(volume-volume_filled)
+                                volume_filled += filled
+                                matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
+                                if volume_filled < volume:
+                                    self.asks.remove(ask_node.price)
+                                    ask_node = next(ask_it)
+                                    ask_price = ask_node.price
+                            #update bid in book
+                            assert volume_filled<=volume
+                            if volume_filled==volume:
+                                bid_node.cancel_order(bid_id)
+                                if bid_node.interest == 0:
+                                    self.bids.remove(bid_node.price)
+                            elif volume_filled >0:
+                                bid_node.reduce_order(bid_id, volume - volume_filled)
+            except StopIteration:
+                pass
         return matches
 
 
