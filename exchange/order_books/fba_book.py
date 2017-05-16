@@ -1,6 +1,7 @@
 from exchange.order_books.book_price_q import BookPriceQ
 from exchange.order_books.list_elements import SortedIndexedDefaultList
 import heapq
+import math
 import logging as log
 
 MIN_BID = 0
@@ -111,22 +112,29 @@ class FBABook:
             self.bids.ascending_items(), 
             key= lambda bpq: -bpq.price)
         log.debug('Ask prices=%s:%s, bid prices=%s:%s', 
-            [p.price for p in self.asks.descending_items()], 
-            [p.price for p in self.asks.ascending_items()],
-            [p.price for p in self.bids.ascending_items()],
-            [p.price for p in self.bids.descending_items()])
+            [(p.price, p.interest) for p in self.asks.ascending_items()], 
+            [(p.price, p.interest) for p in self.asks.ascending_items()],
+            [(p.price, p.interest) for p in self.bids.ascending_items()],
+            [(p.price, p.interest) for p in self.bids.descending_items()])
         assert len([p.price for p in self.asks.descending_items()])==len([p.price for p in self.asks.ascending_items()]) 
         
-        orders_volume = 0
-        clearing_price = None
-
+        orders_volume = prior_orders_volume = 0
+        clearing_price=None
         log.debug('Calculating clearing price..')
+        bpq=prior_bpq=None
+
         for bpq in all_orders_descending:
-            if orders_volume >= asks_volume:
+            prior_orders_volume = orders_volume
+            orders_volume += bpq.interest
+            if orders_volume > asks_volume:
                 break
-            else:
-                orders_volume += bpq.interest
-                clearing_price = bpq.price
+            prior_bpq=bpq
+        #If prior_orders_volume exactly hit asks and loop was able to continue, price is averaged, otherwise its the first price that pushed over limit.
+        if prior_orders_volume==asks_volume and prior_bpq is not None:
+            clearing_price = math.ceil((prior_bpq.price+bpq.price)/2)
+        elif orders_volume>asks_volume:
+            clearing_price = bpq.price
+
         log.debug('Clearing price: %s', clearing_price)
 
         matches = []

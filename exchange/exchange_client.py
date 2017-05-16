@@ -90,7 +90,7 @@ class Client():
             request = OuchClientMessages.EnterOrder(
                 order_token='{:014d}'.format(index).encode('ascii'),
                 buy_sell_indicator=b'B' if randint(0,1)==1 else b'S',
-                shares=randrange(1,10**6-1),
+                shares=1,#randrange(1,10**6-1),
                 stock=b'AMAZGOOG',
                 price=randrange(1,100),
                 time_in_force=options.time_in_force,
