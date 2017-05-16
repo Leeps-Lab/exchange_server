@@ -56,7 +56,7 @@ class SortedIndexedDefaultList:
 					current.next = n
 					n.prev = current
 					self.end = n
-					return current.data
+					return current.next.data
 				else:					#insert into middle of linked list
 					n.next = current.next
 					n.prev = current
