@@ -5,7 +5,7 @@ from exchange.order_books.book_price_q import BookPriceQ
 from exchange.order_books.list_elements import SortedIndexedDefaultList
 
 MIN_BID = 0
-MAX_ASK = 2000000000
+MAX_ASK = 2147483647
 
 class CDABook:
 	def __init__(self):

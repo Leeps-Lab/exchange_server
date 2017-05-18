@@ -5,7 +5,7 @@ import math
 import logging as log
 
 MIN_BID = 0
-MAX_ASK = 2000000000
+MAX_ASK = 2147483647
 
 def merge(ait, bit, key):
     a=None
@@ -123,17 +123,50 @@ class FBABook:
         log.debug('Calculating clearing price..')
         bpq=prior_bpq=None
 
+        min_real_price = None
+        max_real_price = None
+
         for bpq in all_orders_descending:
+            #update min/max prices
+            if max_real_price is None or max_real_price<bpq.price<MAX_ASK:
+                max_real_price = bpq.price
+            if min_real_price is None or MIN_BID<bpq.price<min_real_price:
+                min_real_price = bpq.price
+            #process and deal with volumes
             prior_orders_volume = orders_volume
             orders_volume += bpq.interest
+            log.debug('  checking price %s, vol %s/%s', bpq.price, orders_volume, asks_volume)
             if orders_volume > asks_volume:
                 break
             prior_bpq=bpq
+
+        #if bpq.price is still at MAX_ASK, loop until price is less than max_ask and use that price
+        if bpq is not None and bpq.price==MAX_ASK:
+            for bpq in all_orders_descending:
+                if max_real_price is None or max_real_price<bpq.price<MAX_ASK:
+                    max_real_price = bpq.price
+                if min_real_price is None or MIN_BID<bpq.price<min_real_price:
+                    min_real_price = bpq.price
+                log.debug('looping until price <%s: current price:%s', MAX_ASK, bpq.price)
+                if bpq.price<MAX_ASK:
+                    break
+
         #If prior_orders_volume exactly hit asks and loop was able to continue, price is averaged, otherwise its the first price that pushed over limit.
-        if prior_orders_volume==asks_volume and prior_bpq is not None:
-            clearing_price = math.ceil((prior_bpq.price+bpq.price)/2)
+        if max_real_price is None and min_real_price is None:
+            clearing_price = None #no real prices - can't match if all bids/offers are market orders
+        elif prior_orders_volume==asks_volume and prior_bpq is not None:
+            if prior_bpq.price==MAX_ASK and MIN_BID<bpq.price<MAX_ASK:
+                clearing_price=bpq.price
+            elif prior_bpq.price<MAX_ASK and MIN_BID<bpq.price:
+                clearing_price = math.ceil((prior_bpq.price+bpq.price)/2)
+            elif MIN_BID<prior_bpq.price<MAX_ASK and MIN_BID==bpq.price:
+                clearing_price=prior_bpq.price
+            elif prior_bpq.price==MIN_BID:
+                clearing_price=min_real_price
         elif orders_volume>asks_volume:
-            clearing_price = bpq.price
+            clearing_price = max(bpq.price, min_real_price)
+
+
 
         log.debug('Clearing price: %s', clearing_price)
 
@@ -156,8 +189,8 @@ class FBABook:
                                 (filled, fulfilling_orders) = ask_node.fill_order(volume-volume_filled)
                                 volume_filled += filled
                                 matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
-                                if volume_filled < volume:
-                                    self.asks.remove(ask_node.price)
+                                if volume_filled <= volume:
+                                    self.asks.remove(ask_price)
                                     ask_node = next(ask_it)
                                     ask_price = ask_node.price
                             #update bid in book

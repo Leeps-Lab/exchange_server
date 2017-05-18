@@ -21,6 +21,13 @@ p.add('--debug', action='store_true')
 p.add('--time_in_force', default=99999, type=int)
 options, args = p.parse_known_args()
 
+def rounduprounddown(i, minlimit, maxlimit, roundeddown, roundedup):
+    if i<minlimit:
+        return roundeddown
+    elif i>maxlimit:
+        return roundedup
+    else: 
+        return i
 
 
 class Client():
@@ -92,7 +99,7 @@ class Client():
                 buy_sell_indicator=b'B' if randint(0,1)==1 else b'S',
                 shares=1,#randrange(1,10**6-1),
                 stock=b'AMAZGOOG',
-                price=randrange(1,100),
+                price=rounduprounddown(randrange(1,100), 30, 70, 0, 2147483647 ),
                 time_in_force=options.time_in_force,
                 firm=b'OUCH',
                 display=b'N',
@@ -109,7 +116,7 @@ class Client():
                 existing_order_token='{:014d}'.format(index).encode('ascii'),
                 replacement_order_token='{:014d}'.format(900000000+index).encode('ascii'),
                 shares=2*request['shares'],
-                price=2*request['price'],
+                price=request['price'],
                 time_in_force=options.time_in_force,
                 display=b'N',
                 intermarket_sweep_eligibility=b'N',
