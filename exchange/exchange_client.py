@@ -99,7 +99,7 @@ class Client():
                 buy_sell_indicator=b'B' if randint(0,1)==1 else b'S',
                 shares=1,#randrange(1,10**6-1),
                 stock=b'AMAZGOOG',
-                price=rounduprounddown(randrange(1,100), 30, 70, 0, 2147483647 ),
+                price=rounduprounddown(randrange(1,100), 40, 60, 0, 2147483647 ),
                 time_in_force=options.time_in_force,
                 firm=b'OUCH',
                 display=b'N',

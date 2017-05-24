@@ -8,6 +8,14 @@ MIN_BID = 0
 MAX_ASK = 2147483647
 
 def merge(ait, bit, key):
+    """
+    >>> [a for a in merge(iter([1]), iter([4]), lambda i:i)]
+    [1,4]
+    >>> [a for a in merge(iter([4]), iter([1]), lambda i:i)]
+    [1, 4]
+    >>> [a for a in merge(iter([1,2,3, 10]), iter([2,4,7]), lambda i:i)]
+    [1,2,2,3,4,7,10]
+    """
     a=None
     b=None
     try:
@@ -19,6 +27,7 @@ def merge(ait, bit, key):
         try:
             b = next(bit)
         except StopIteration:
+            yield a
             yield from ait
             return
 
@@ -29,12 +38,14 @@ def merge(ait, bit, key):
                         yield a
                         a = next(ait)
                 except StopIteration:
+                    yield b
                     yield from bit
                     return
 
                 yield b
                 b = next(bit)
             except StopIteration:
+                yield a
                 yield from ait 
                 return
 
@@ -112,8 +123,8 @@ class FBABook:
             self.bids.ascending_items(), 
             key= lambda bpq: -bpq.price)
         log.debug('Ask prices=%s:%s, bid prices=%s:%s', 
-            [(p.price, p.interest) for p in self.asks.ascending_items()], 
             [(p.price, p.interest) for p in self.asks.ascending_items()],
+            [(p.price, p.interest) for p in self.asks.descending_items()], 
             [(p.price, p.interest) for p in self.bids.ascending_items()],
             [(p.price, p.interest) for p in self.bids.descending_items()])
         assert len([p.price for p in self.asks.descending_items()])==len([p.price for p in self.asks.ascending_items()]) 
@@ -126,12 +137,18 @@ class FBABook:
         min_real_price = None
         max_real_price = None
 
+        log.debug('all orders descending: %s', [(b.price,b.interest) for b in merge(
+            self.asks.descending_items(),
+            self.bids.ascending_items(), 
+            key= lambda bpq: -bpq.price)])
+        
         for bpq in all_orders_descending:
             #update min/max prices
-            if max_real_price is None or max_real_price<bpq.price<MAX_ASK:
-                max_real_price = bpq.price
-            if min_real_price is None or MIN_BID<bpq.price<min_real_price:
-                min_real_price = bpq.price
+            if MIN_BID<bpq.price<MAX_ASK:
+                if max_real_price is None or max_real_price < bpq.price:
+                    max_real_price = bpq.price
+                if min_real_price is None or bpq.price<min_real_price:
+                    min_real_price = bpq.price
             #process and deal with volumes
             prior_orders_volume = orders_volume
             orders_volume += bpq.interest
