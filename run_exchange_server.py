@@ -8,6 +8,7 @@ from exchange.order_books.cda_book import CDABook
 from exchange.order_books.fba_book import FBABook
 from exchange.exchange import Exchange
 from exchange.fba_exchange import FBAExchange
+from exchange.order_books.book_logging import BookLogger
 
 p = configargparse.getArgParser()
 p.add('--port', default=12345)
@@ -16,6 +17,7 @@ p.add('--debug', action='store_true')
 p.add('--logfile', default=None, type=str)
 p.add('--inputlogfile', default=None, type=str)
 p.add('--outputlogfile', default=None, type=str)
+p.add('--book_log', default=None)
 p.add('--mechanism', choices=['cda', 'fba'], default = 'cda')
 p.add('--interval', default = None, type=float, help="(FBA) Interval between batch auctions in seconds")
 options, args = p.parse_known_args()
@@ -29,18 +31,21 @@ def main():
 
     loop = asyncio.get_event_loop()
     server = ProtocolMessageServer(OuchClientMessages)
+    book_logger = BookLogger(options.book_log) if options.book_log is not None else None
     
     if options.mechanism == 'cda':        
         book = CDABook()
         exchange = Exchange(order_book = book,
                             order_reply = server.send_server_response,
-                            loop = loop)
+                            loop = loop,
+                            order_book_logger = book_logger)
     elif options.mechanism == 'fba':
         book = FBABook()
         exchange = FBAExchange(order_book = book,
                             order_reply = server.send_server_response,
                             message_broadcast = server.broadcast_server_message,
                             loop = loop, 
+                            order_book_logger = book_logger,
                             interval = options.interval)
         exchange.start()
     

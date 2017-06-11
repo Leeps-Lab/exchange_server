@@ -22,7 +22,7 @@ from exchange.order_store import OrderStore
 
 
 class Exchange:
-    def __init__(self, order_book, order_reply, loop, message_broadcast = None):
+    def __init__(self, order_book, order_reply, loop, order_book_logger = None, message_broadcast = None):
         '''
         order_book - the book!
         order_reply - post office reply function, takes in 
@@ -40,6 +40,7 @@ class Exchange:
         self.loop = loop
         self.outgoing_messages = deque()
         self.order_ref_numbers = itertools.count(1, 2)  # odds
+        self.order_book_logger = order_book_logger
 
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
@@ -274,6 +275,8 @@ class Exchange:
         if message.message_type in self.handlers:
             self.handlers[message.message_type](message)
             await self.send_outgoing_messages()
+            if self.order_book_logger is not None:
+                self.order_book_logger.log_book_order(self.order_book, message)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
