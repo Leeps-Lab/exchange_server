@@ -4,8 +4,6 @@ from exchange.exchange import Exchange
 from OuchServer.ouch_server import nanoseconds_since_midnight
 from OuchServer.ouch_messages import OuchServerMessages
 
-
-
 class FBAExchange(Exchange):
     def __init__(self, interval, *args, **kwargs):
         self.interval = interval
@@ -39,5 +37,6 @@ class FBAExchange(Exchange):
                     event_code=b'P',
                     timestamp=nanoseconds_since_midnight()))
             await self.send_outgoing_messages()
+            self.order_book_logger.log_book(self.order_book, timestamp, self.order_store)
             log.debug('Ended batch at %s', self.loop.time())
             await asyncio.sleep(self.interval - (self.loop.time() % self.interval))

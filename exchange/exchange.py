@@ -121,8 +121,7 @@ class Exchange:
         self.order_store.add_to_order(r2['order_token'], r2)
         return [r1, r2]
 
-    def enter_order_atomic(self, enter_order_message, executed_quantity = 0):
-        timestamp = nanoseconds_since_midnight()
+    def enter_order_atomic(self, enter_order_message, timestamp, executed_quantity = 0):
         order_stored = self.order_store.store_order( 
             id = enter_order_message['order_token'], 
             message = enter_order_message, 
@@ -153,8 +152,7 @@ class Exchange:
                                 for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
             self.outgoing_messages.extend(cross_messages)
 
-    def cancel_order_atomic(self, cancel_order_message, reason=b'U'):
-        timestamp = nanoseconds_since_midnight()
+    def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
             log.debug('No such order to cancel, ignored')
         else:
@@ -185,8 +183,7 @@ class Exchange:
         #     4) If the order for the existing Order Token is live and can be replaced, you will receive
         #         either a Replaced Message or an Atomically Replaced and Canceled Message.
         # """
-    def replace_order_atomic(self, replace_order_message):
-        timestamp = nanoseconds_since_midnight()
+    def replace_order_atomic(self, replace_order_message, timestamp):
         if replace_order_message['existing_order_token'] not in self.order_store.orders:
             log.debug('Existing token %s unknown, siliently ignoring', replace_order_message['existing_order_token'])
             return []
@@ -273,10 +270,11 @@ class Exchange:
     async def process_message(self, message):
         log.debug('Processing message %s', message)
         if message.message_type in self.handlers:
-            self.handlers[message.message_type](message)
+            timestamp = nanoseconds_since_midnight()
+            self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message)
+                self.order_book_logger.log_book_order(self.order_book, message, timestamp, self.order_store)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
