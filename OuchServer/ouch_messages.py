@@ -99,6 +99,10 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             {'msg_type': b'N'},
             ['order_token']
         )
+    SystemEvent = ('{timestamp}:{event_code}',          #jason
+            {'msg_type': b'S'},
+            ['timestamp', 'event_code']
+        )
 
 LookupByHeaderBytesMixin = create_attr_lookup_mixin(
     'LookupByHeaderBytesMixin_ServerMsgs', 'header_bytes')
