@@ -24,11 +24,11 @@ class CDABook:
   Asks:
 {}""".format(self.bid, self.ask, self.bids, self.asks)
 
-	def reset_book(self):
+	def reset_book(self):						#jason
 		log.info('Clearing All Entries from Order Book')
 		self.bid = MIN_BID
 		self.ask = MAX_ASK
-		for id in list(self.asks.index):
+		for id in list(self.asks.index):		#force as list because can't interate dict and delete keys at same time
                 	self.asks.remove(id)
 		for id in list(self.bids.index):
                 	self.bids.remove(id)
