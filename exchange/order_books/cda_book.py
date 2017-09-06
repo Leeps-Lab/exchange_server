@@ -28,9 +28,10 @@ class CDABook:
 		log.info('Clearing All Entries from Order Book')
 		self.bid = MIN_BID
 		self.ask = MAX_ASK
-		self.bids.clear()
-		self.asks.clear()
-
+		for id in self.asks.index:
+                	self.asks.remove(id)
+		for id in self.bids.index:
+                	self.bids.remove(id)
 
 	def cancel_order(self, id, price, volume, buy_sell_indicator):
 		'''
