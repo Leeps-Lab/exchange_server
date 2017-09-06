@@ -24,6 +24,13 @@ class CDABook:
   Asks:
 {}""".format(self.bid, self.ask, self.bids, self.asks)
 
+	def reset_book(self):
+		log.info('Clearing All Entries from Order Book')
+		self.bid = MIN_BID
+		self.ask = MAX_ASK
+		self.bids.clear()
+		self.asks.clear()
+
 
 	def cancel_order(self, id, price, volume, buy_sell_indicator):
 		'''

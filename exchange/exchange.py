@@ -50,6 +50,8 @@ class Exchange:
             OuchClientMessages.ModifyOrder: None}
 
     def system_event_atomic(self, system_event_message, timestamp):      #jason
+        self.order_store.clear_order_store()        #clear order store
+        self.order_book.reset_book()                #cancel any orders in order book
         m = OuchClientMessages.SystemEvent(
             timestamp=timestamp,
             event_code=system_event_message['event_code'])
