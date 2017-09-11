@@ -38,9 +38,8 @@ class OrderStore:
 
 	def clear_order_store(self):				#jason
 		log.info("Clearing the Stored Orders!!")
-		log.info(self.orders)
 		self.orders.clear()
-		log.info(self.orders)
+		self.history = []
 
 class OrderStoreEntry:
 	def __init__(self, message,  executed_quantity, original_enter_message = None):
