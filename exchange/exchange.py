@@ -50,13 +50,12 @@ class Exchange:
             OuchClientMessages.ModifyOrder: None}
 
     def system_event_atomic(self, system_event_message, timestamp):      #jason
-        self.order_store.clear_order_store()        #clear order store
-        self.order_book.reset_book()                #cancel any orders in order book
-        m = OuchClientMessages.SystemEvent(
-            timestamp=timestamp,
-            event_code=system_event_message['event_code'])
-        m.meta = system_event_message.meta
-        return m
+        if system_event_message['event_code'] == b'E':
+            log.info("End of Day")
+            self.loop.close()
+        else:
+            self.order_store.clear_order_store()
+            self.order_book.reset_book()
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
