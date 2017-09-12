@@ -52,7 +52,8 @@ class Exchange:
     def system_event_atomic(self, system_event_message, timestamp):      #jason
         if system_event_message['event_code'] == b'E':
             log.info("End of Day")
-            self.loop.close()
+            self.loop.stop()
+            #self.loop.close()
         else:
             self.order_store.clear_order_store()
             self.order_book.reset_book()
