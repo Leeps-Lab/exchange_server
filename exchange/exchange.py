@@ -41,6 +41,7 @@ class Exchange:
         self.outgoing_messages = deque()
         self.order_ref_numbers = itertools.count(1, 2)  # odds
         self.order_book_logger = order_book_logger
+        self.start_time = 0 #jason
 
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
@@ -57,7 +58,7 @@ class Exchange:
         else:
             self.order_store.clear_order_store()
             self.order_book.reset_book()
-
+            self.start_time = nanoseconds_since_midnight()
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
             timestamp=timestamp,
@@ -284,7 +285,7 @@ class Exchange:
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message, timestamp, self.order_store)
+                self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False

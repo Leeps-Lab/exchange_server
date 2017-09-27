@@ -15,7 +15,7 @@ import pytz
 
 from .ouch_messages import OuchClientMessages, OuchServerMessages
 
-DEFAULT_TIMEZONE = pytz.timezone('US/Pacific')
+DEFAULT_TIMEZONE = pytz.timezone('America/Los_Angeles')
 
 p = configargparse.ArgParser()
 p.add('--port', default=12345)
