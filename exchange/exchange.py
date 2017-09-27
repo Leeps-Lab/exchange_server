@@ -285,12 +285,21 @@ class Exchange:
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
+                self.order_book_logger.log_book_order(self.order_book, message, printTime(timestamp - self.start_time), self.order_store)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
 
     async def modify_order(self, modify_order_message):
         raise NotImplementedError()
+
+    def printTime(nanoseconds):
+        var str = "";
+        var millis  = Math.floor((nanoseconds / 1000000) % 1000);
+        var seconds = Math.floor((nanoseconds / 1000000000) % 60);
+        var minutes = Math.floor(nanoseconds / (60*1000000000) % 60);
+        var hours   = Math.floor(nanoseconds / (60*60*1000000000) % 24);
+        str = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]";
+    return str;
 
 
