@@ -59,7 +59,8 @@ class Exchange:
         else:
             self.order_store.clear_order_store()
             self.order_book.reset_book()
-            self.start_time = nanoseconds_since_midnight()
+            self.start_time = timestamp
+            log.info(printTime(self.start_time))
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
             timestamp=timestamp,
