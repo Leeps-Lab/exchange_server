@@ -49,6 +49,15 @@ class Exchange:
             OuchClientMessages.CancelOrder: self.cancel_order_atomic,
             OuchClientMessages.SystemEvent: self.system_event_atomic,  #jason
             OuchClientMessages.ModifyOrder: None}
+    
+    def printTime(nanoseconds):#jason
+        out = ""
+        millis  = Math.floor((nanoseconds / 1000000) % 1000)
+        seconds = Math.floor((nanoseconds / 1000000000) % 60)
+        minutes = Math.floor(nanoseconds / (60*1000000000) % 60)
+        hours   = Math.floor(nanoseconds / (60*60*1000000000) % 24)
+        out = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]"
+        return out
 
     def system_event_atomic(self, system_event_message, timestamp):      #jason
         if system_event_message['event_code'] == b'E':
@@ -292,14 +301,4 @@ class Exchange:
 
     async def modify_order(self, modify_order_message):
         raise NotImplementedError()
-
-    def printTime(nanoseconds):
-        var str = "";
-        var millis  = Math.floor((nanoseconds / 1000000) % 1000);
-        var seconds = Math.floor((nanoseconds / 1000000000) % 60);
-        var minutes = Math.floor(nanoseconds / (60*1000000000) % 60);
-        var hours   = Math.floor(nanoseconds / (60*60*1000000000) % 24);
-        str = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]";
-    return str;
-
 
