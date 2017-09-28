@@ -153,6 +153,15 @@ def nanoseconds_since_midnight(tz=DEFAULT_TIMEZONE):
     timestamp *= 10**3  # microseconds -> nanoseconds
     return timestamp
 
+def printTime(nanoseconds):#jason
+    out = ""
+    millis  = Math.floor((nanoseconds / 1000000) % 1000)
+    seconds = Math.floor((nanoseconds / 1000000000) % 60)
+    minutes = Math.floor(nanoseconds / (60*1000000000) % 60)
+    hours   = Math.floor(nanoseconds / (60*60*1000000000) % 24)
+    out = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]"
+    return out
+
 order_ref_numbers = itertools.count(1, 2)  # odds
 async def message_acker(callback, message):
     if message.message_type is not OuchClientMessages.EnterOrder:
