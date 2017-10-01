@@ -59,8 +59,9 @@ class Exchange:
         else:
             self.order_store.clear_order_store()
             self.order_book.reset_book()
-            self.start_time = timestamp
-            log.info(printTime(self.start_time))
+            self.start_time = system_event_message['timestamp']
+            #self.start_time = timestamp
+            log.info(self.start_time)
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
             timestamp=timestamp,
@@ -285,6 +286,8 @@ class Exchange:
         if message.message_type in self.handlers:
             # timestamp = nanoseconds_since_midnight()
             timestamp = message['timestamp']
+            #log.info(printTime(timestamp))
+            #log.info(printTime(timestamp - self.start_time))
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:
