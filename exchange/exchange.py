@@ -283,7 +283,8 @@ class Exchange:
     async def process_message(self, message):
         log.debug('Processing message %s', message)
         if message.message_type in self.handlers:
-            timestamp = nanoseconds_since_midnight()
+            # timestamp = nanoseconds_since_midnight()
+            timestamp = message['timestamp']
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:

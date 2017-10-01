@@ -79,21 +79,21 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'customer_type']
+             'cross_type', 'customer_type', 'timestamp']
         )
     ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}',
             {'msg_type': b'U'},
             ['existing_order_token', 'replacement_order_token',
              'shares', 'price', 'time_in_force', 'display',
-             'intermarket_sweep_eligibility', 'minimum_quantity']
+             'intermarket_sweep_eligibility', 'minimum_quantity', 'timestamp']
         )
     CancelOrder = ('{order_token}:{shares}',
             {'msg_type': b'X'},
-            ['order_token', 'shares']
+            ['order_token', 'shares', 'timestamp']
         )
     ModifyOrder = ('{order_token}:{buy_sell_indicator}x{shares}',
             {'msg_type': b'M'},
-            ['order_token', 'buy_sell_indicator', 'shares']
+            ['order_token', 'buy_sell_indicator', 'shares', 'timestamp']
         )
     TradeNow = ('{order_token}',
             {'msg_type': b'N'},
