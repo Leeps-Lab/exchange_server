@@ -79,13 +79,13 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'customer_type', 'timestamp']
+             'cross_type', 'customer_type', 'leeps_timestamp']
         )
     ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}>{timestamp}',
             {'msg_type': b'U'},
             ['existing_order_token', 'replacement_order_token',
              'shares', 'price', 'time_in_force', 'display',
-             'intermarket_sweep_eligibility', 'minimum_quantity', 'timestamp']
+             'intermarket_sweep_eligibility', 'minimum_quantity', 'leeps_timestamp']
         )
     CancelOrder = ('{order_token}:{shares}>{timestamp}',
             {'msg_type': b'X'},
@@ -93,7 +93,7 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
         )
     ModifyOrder = ('{order_token}:{buy_sell_indicator}x{shares}>{timestamp}',
             {'msg_type': b'M'},
-            ['order_token', 'buy_sell_indicator', 'shares', 'timestamp']
+            ['order_token', 'buy_sell_indicator', 'shares', 'leeps_timestamp']
         )
     TradeNow = ('{order_token}',
             {'msg_type': b'N'},
