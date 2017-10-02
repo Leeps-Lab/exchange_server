@@ -8,6 +8,7 @@ import asyncio.streams
 import configargparse
 import logging as log
 import itertools
+import math
 from collections import namedtuple
 from functools import partial
 import datetime
@@ -155,10 +156,10 @@ def nanoseconds_since_midnight(tz=DEFAULT_TIMEZONE):
 
 def printTime(nanoseconds):#jason
     out = ""
-    millis  = Math.floor((nanoseconds / 1000000) % 1000)
-    seconds = Math.floor((nanoseconds / 1000000000) % 60)
-    minutes = Math.floor(nanoseconds / (60*1000000000) % 60)
-    hours   = Math.floor(nanoseconds / (60*60*1000000000) % 24)
+    millis  = str(math.floor((nanoseconds / 1000000) % 1000))
+    seconds = str(math.floor((nanoseconds / 1000000000) % 60))
+    minutes = str(math.floor(nanoseconds / (60*1000000000) % 60))
+    hours   = str(math.floor(nanoseconds / (60*60*1000000000) % 24))
     out = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]"
     return out
 
