@@ -60,6 +60,10 @@ class Exchange:
             self.order_store.clear_order_store()
             self.order_book.reset_book()
             self.start_time = nanoseconds_since_midnight()
+            log.info(printTime(self.start_time))
+	    #log.info(system_event_message['timestamp'])
+            #log.info(printTime(system_event_message['timestamp']))
+            #log.info(int.from_bytes(system_event_message['leeps_timestamp'], byteorder='little'))
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
             timestamp=timestamp,
