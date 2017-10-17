@@ -290,7 +290,7 @@ class Exchange:
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message, printTime(timestamp - self.start_time), self.order_store)
+                self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
