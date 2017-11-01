@@ -35,7 +35,8 @@ class OuchFields(ProtocolFieldEnum):
     match_number = ('Q', 'todo')
     reference_price = ('I', 'todo')
     reference_price_type = ('c', 'todo')
-    
+    leeps_timestamp = ('8s', 'todo')
+
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
     _protocol_fields = OuchFields
