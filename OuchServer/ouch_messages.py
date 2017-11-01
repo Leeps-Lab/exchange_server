@@ -75,26 +75,26 @@ LookupByHeaderBytesMixin = create_attr_lookup_mixin(
     'LookupByHeaderBytesMixin_ClientMsgs', 'header_bytes')
 class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
                          DuplicateFreeEnum):
-    EnterOrder = ('{order_token}:{buy_sell_indicator}{shares}x{stock}@{price}',
+    EnterOrder = ('{order_token}:{buy_sell_indicator}{shares}x{stock}@{price}>{timestamp}',
             {'msg_type': b'O'},
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'customer_type']
+             'cross_type', 'customer_type', 'leeps_timestamp']
         )
-    ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}',
+    ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}>{timestamp}',
             {'msg_type': b'U'},
             ['existing_order_token', 'replacement_order_token',
              'shares', 'price', 'time_in_force', 'display',
-             'intermarket_sweep_eligibility', 'minimum_quantity']
+             'intermarket_sweep_eligibility', 'minimum_quantity', 'leeps_timestamp']
         )
-    CancelOrder = ('{order_token}:{shares}',
+    CancelOrder = ('{order_token}:{shares}>{timestamp}',
             {'msg_type': b'X'},
-            ['order_token', 'shares']
+            ['order_token', 'shares', 'timestamp']
         )
-    ModifyOrder = ('{order_token}:{buy_sell_indicator}x{shares}',
+    ModifyOrder = ('{order_token}:{buy_sell_indicator}x{shares}>{timestamp}',
             {'msg_type': b'M'},
-            ['order_token', 'buy_sell_indicator', 'shares']
+            ['order_token', 'buy_sell_indicator', 'shares', 'leeps_timestamp']
         )
     TradeNow = ('{order_token}',
             {'msg_type': b'N'},
