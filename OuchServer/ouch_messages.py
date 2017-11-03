@@ -35,7 +35,7 @@ class OuchFields(ProtocolFieldEnum):
     match_number = ('Q', 'todo')
     reference_price = ('I', 'todo')
     reference_price_type = ('c', 'todo')
-    leeps_timestamp = ('8s', 'todo')
+    leeps_timestamp = ('16s', 'todo')
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -80,13 +80,13 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'customer_type', 'leeps_timestamp']
+             'cross_type', 'customer_type', 'timestamp']
         )
     ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}>{timestamp}',
             {'msg_type': b'U'},
             ['existing_order_token', 'replacement_order_token',
              'shares', 'price', 'time_in_force', 'display',
-             'intermarket_sweep_eligibility', 'minimum_quantity', 'leeps_timestamp']
+             'intermarket_sweep_eligibility', 'minimum_quantity', 'timestamp']
         )
     CancelOrder = ('{order_token}:{shares}>{timestamp}',
             {'msg_type': b'X'},
@@ -94,15 +94,15 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
         )
     ModifyOrder = ('{order_token}:{buy_sell_indicator}x{shares}>{timestamp}',
             {'msg_type': b'M'},
-            ['order_token', 'buy_sell_indicator', 'shares', 'leeps_timestamp']
+            ['order_token', 'buy_sell_indicator', 'shares', 'timestamp']
         )
     TradeNow = ('{order_token}',
             {'msg_type': b'N'},
             ['order_token']
         )
-    SystemEvent = ('{timestamp}:{event_code}',          #jason
+    SystemEvent = ('{leeps_timestamp}:{event_code}',          #jason
             {'msg_type': b'S'},
-            ['timestamp', 'event_code']
+            ['leeps_timestamp', 'event_code']
         )
 
 LookupByHeaderBytesMixin = create_attr_lookup_mixin(

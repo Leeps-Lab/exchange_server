@@ -62,11 +62,14 @@ class Exchange:
             
             #self.start_time = nanoseconds_since_midnight()
             #log.info(printTime(self.start_time))
-            self.start_time = system_event_message['timestamp']
-            log.info(system_event_message['timestamp'])
-            log.info(type(system_event_message['timestamp']))
-            log.info(printTime(system_event_message['timestamp']))
-            #log.info(int.from_bytes(system_event_message['timestamp'], byteorder='little'))
+            leeps_time = system_event_message['leeps_timestamp']
+            log.info(leeps_time)
+            result = 0
+            for b in leeps_time:
+                result = (result << 4) + int(b)
+            self.start_time = result * 1000000
+            log.info(self.start_time)
+            self.start_time = nanoseconds_since_midnight()
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
