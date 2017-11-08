@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../../OuchServer')
+from OuchServer.ouch_server import printTime
 
 
 class BookLogger():
@@ -14,11 +17,11 @@ class BookLogger():
 
     def log_book(self, book, timestamp, order_store):
         with open(self.book_logfile, "a") as logfile:
-            logfile.writelines([str({'timestamp':timestamp, 
+            logfile.writelines([str({'timestamp':printTime(timestamp), 
                             'book':self.book_to_dict(book, order_store)}), '\n'])
 
     def log_book_order(self, book, order, timestamp, order_store):
         with open(self.book_logfile, "a") as logfile:
-            logfile.writelines([str({'timestamp':timestamp, 
+            logfile.writelines([str({'timestamp':printTime(timestamp), 
                                 'order':str(order), 
                                 'book':self.book_to_dict(book, order_store)}), '\n']) 
