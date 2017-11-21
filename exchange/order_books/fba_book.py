@@ -214,13 +214,16 @@ class FBABook:
                             while volume_filled < volume and ask_price <= clearing_price:
                                 (filled, fulfilling_orders) = ask_node.fill_order(volume-volume_filled)
                                 volume_filled += filled
+                                log.debug('volume filled: %d, filled: %d, vol: %d', volume_filled, filled, volume)
                                 matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
-                                if volume_filled <= volume:
+
+                                if volume_filled < volume: #THIS USED TO BE <= BUT BUG VANQUISHER JASON CAME TO THE RESCUE
                                     self.asks.remove(ask_price)
                                     ask_node = next(ask_it)
                                     ask_price = ask_node.price
+
                             #update bid in book
-                            assert volume_filled<=volume
+                            assert volume_filled<=volume  #WHY DOES THIS EXIST???
                             if volume_filled==volume:
                                 bid_node.cancel_order(bid_id)
                                 if bid_node.interest == 0:

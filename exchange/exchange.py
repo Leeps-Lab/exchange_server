@@ -120,6 +120,7 @@ class Exchange:
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
         order_message = self.order_store.orders[id].first_message
         fulfilling_order_message = self.order_store.orders[fulfilling_order_id].first_message
+        log.debug('%s,%s',order_message,fulfilling_order_message)
         match_number = self.next_match_number
         self.next_match_number += 1
         r1 = OuchServerMessages.Executed(
