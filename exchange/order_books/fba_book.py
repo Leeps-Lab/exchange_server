@@ -218,7 +218,7 @@ class FBABook:
                                 matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
 
                                 if volume_filled < volume: #THIS USED TO BE <= BUT BUG VANQUISHER JASON CAME TO THE RESCUE
-                                    self.asks.remove(ask_price)
+                                    self.asks.remove(ask_price) #remove this line #also test putting back the = in previous line
                                     ask_node = next(ask_it)
                                     ask_price = ask_node.price
 
