@@ -8,6 +8,7 @@ import asyncio.streams
 import configargparse
 import logging as log
 import itertools
+import math
 from collections import namedtuple
 from functools import partial
 import datetime
@@ -15,7 +16,7 @@ import pytz
 
 from .ouch_messages import OuchClientMessages, OuchServerMessages
 
-DEFAULT_TIMEZONE = pytz.timezone('US/Pacific')
+DEFAULT_TIMEZONE = pytz.timezone('America/Los_Angeles')
 
 p = configargparse.ArgParser()
 p.add('--port', default=12345)
@@ -152,6 +153,15 @@ def nanoseconds_since_midnight(tz=DEFAULT_TIMEZONE):
     timestamp += now.microsecond
     timestamp *= 10**3  # microseconds -> nanoseconds
     return timestamp
+
+def printTime(nanoseconds):#jason
+    out = ""
+    millis  = str(math.floor((nanoseconds / 1000000) % 1000))
+    seconds = str(math.floor((nanoseconds / 1000000000) % 60))
+    minutes = str(math.floor(nanoseconds / (60*1000000000) % 60))
+    hours   = str(math.floor(nanoseconds / (60*60*1000000000) % 24))
+    out = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]"
+    return out
 
 order_ref_numbers = itertools.count(1, 2)  # odds
 async def message_acker(callback, message):

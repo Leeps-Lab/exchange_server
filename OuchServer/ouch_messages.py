@@ -35,7 +35,8 @@ class OuchFields(ProtocolFieldEnum):
     match_number = ('Q', 'todo')
     reference_price = ('I', 'todo')
     reference_price_type = ('c', 'todo')
-    
+    leeps_timestamp = ('16s', 'todo')
+
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
     _protocol_fields = OuchFields
@@ -98,6 +99,10 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
     TradeNow = ('{order_token}',
             {'msg_type': b'N'},
             ['order_token']
+        )
+    SystemEvent = ('{leeps_timestamp}:{event_code}',          #jason
+            {'msg_type': b'S'},
+            ['leeps_timestamp', 'event_code']
         )
 
 LookupByHeaderBytesMixin = create_attr_lookup_mixin(

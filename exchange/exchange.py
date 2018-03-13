@@ -9,6 +9,7 @@ from collections import deque
 
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 from OuchServer.ouch_server import nanoseconds_since_midnight
+from OuchServer.ouch_server import printTime 
 from exchange.order_store import OrderStore
 
 ###
@@ -41,12 +42,34 @@ class Exchange:
         self.outgoing_messages = deque()
         self.order_ref_numbers = itertools.count(1, 2)  # odds
         self.order_book_logger = order_book_logger
+        self.start_time = 0 #jason
 
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
             OuchClientMessages.ReplaceOrder: self.replace_order_atomic,
             OuchClientMessages.CancelOrder: self.cancel_order_atomic,
+            OuchClientMessages.SystemEvent: self.system_event_atomic,  #jason
             OuchClientMessages.ModifyOrder: None}
+
+    def system_event_atomic(self, system_event_message, timestamp):      #jason
+        if system_event_message['event_code'] == b'E':
+            log.info("End of Day")
+            self.loop.stop()
+            #self.loop.close()
+        else:
+            self.order_store.clear_order_store()
+            self.order_book.reset_book()
+            
+            #self.start_time = nanoseconds_since_midnight()
+            #log.info(printTime(self.start_time))
+            leeps_time = system_event_message['leeps_timestamp']
+            log.info(leeps_time)
+            result = 0
+            for b in leeps_time:
+                result = (result << 4) + int(b)
+            self.start_time = result * 1000000
+            log.info(self.start_time)
+            #self.start_time = nanoseconds_since_midnight()
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
@@ -97,6 +120,7 @@ class Exchange:
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
         order_message = self.order_store.orders[id].first_message
         fulfilling_order_message = self.order_store.orders[fulfilling_order_id].first_message
+        log.debug('%s,%s',order_message,fulfilling_order_message)
         match_number = self.next_match_number
         self.next_match_number += 1
         r1 = OuchServerMessages.Executed(
@@ -134,7 +158,7 @@ class Exchange:
             enter_into_book = True if time_in_force > 0 else False    
             if time_in_force > 0 and time_in_force < 99998:     #schedule a cancellation at some point in the future
                 cancel_order_message = self.cancel_order_from_enter_order( enter_order_message )
-                self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message))
+                self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
             
             enter_order_func = self.order_book.enter_buy if enter_order_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
             (crossed_orders, entered_order) = enter_order_func(
@@ -220,7 +244,7 @@ class Exchange:
                     enter_into_book = True if time_in_force > 0 else False    
                     if time_in_force > 0 and time_in_force < 99998:     #schedule a cancellation at some point in the future
                         cancel_order_message = cancel_order_from_replace_order( replace_order_message )
-                        self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message))
+                        self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
                     
                     enter_order_func = self.order_book.enter_buy if original_enter_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
                     (crossed_orders, entered_order) = enter_order_func(
@@ -274,12 +298,11 @@ class Exchange:
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message, timestamp, self.order_store)
+                self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
 
     async def modify_order(self, modify_order_message):
         raise NotImplementedError()
-
 
