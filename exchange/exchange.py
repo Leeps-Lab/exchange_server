@@ -54,14 +54,19 @@ class Exchange:
         log.info("System start message received  : " + str(timestamp))
         self.order_store.clear_order_store()
         self.order_book.reset_book()
-        self.message_broadcast(
-            OuchServerMessages.SystemEvent(
+        m = OuchServerMessages.SystemEvent(
             event_code=b'S',
-            timestamp=timestamp))
+            timestamp=timestamp)
+        m.meta = system_event_message.meta
+        # await self.message_broadcast(
+        #     OuchServerMessages.SystemEvent(
+        #     event_code=b'S',
+        #     timestamp=timestamp))
+        self.outgoing_messages.append(m)
 
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
-        m=OuchServerMessages.Accepted(
+        m = OuchServerMessages.Accepted(
             timestamp=timestamp,
             order_reference_number=order_reference_number, 
             order_state=order_state,
