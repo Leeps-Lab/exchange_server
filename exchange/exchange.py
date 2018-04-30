@@ -50,8 +50,8 @@ class Exchange:
             OuchClientMessages.ModifyOrder: None}
 
     def system_start_atomic(self, system_event_message, timestamp):  
-        log.info("System start message sent      : " + system_event_message['timestamp'])
-        log.info("System start message received  : " + timestamp)
+        log.info("System start message sent      : " + str(system_event_message['timestamp']))
+        log.info("System start message received  : " + str(timestamp))
         self.order_store.clear_order_store()
         self.order_book.reset_book()
         self.message_broadcast(
