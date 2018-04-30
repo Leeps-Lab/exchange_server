@@ -36,6 +36,14 @@ class OrderStore:
 	def execute_quantity(self, id, quantity):
 		self.orders[id].executed_quantity += quantity
 
+	def clear_order_store(self):				
+		log.info("Clearing the Stored Orders!!")
+		log.info(self.orders)
+		self.orders.clear()
+		log.info(self.orders)
+
+
+
 class OrderStoreEntry:
 	def __init__(self, message,  executed_quantity, original_enter_message = None):
 		self.history = []
