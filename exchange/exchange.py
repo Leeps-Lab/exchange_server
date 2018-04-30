@@ -46,7 +46,19 @@ class Exchange:
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
             OuchClientMessages.ReplaceOrder: self.replace_order_atomic,
             OuchClientMessages.CancelOrder: self.cancel_order_atomic,
+            OuchClientMessages.SystemStart: self.system_start_atomic,
             OuchClientMessages.ModifyOrder: None}
+
+    def system_start_atomic(self, system_event_message, timestamp):  
+        log.info("System start message sent      : " + system_event_message['timestamp'])
+        log.info("System start message received  : " + timestamp)
+        self.order_store.clear_order_store()
+        self.order_book.reset_book()
+        self.message_broadcast(
+            OuchServerMessages.SystemEvent(
+            event_code=b'S',
+            timestamp=timestamp))
+
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
         m=OuchServerMessages.Accepted(
