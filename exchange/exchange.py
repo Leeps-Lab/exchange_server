@@ -52,6 +52,7 @@ class Exchange:
     def system_start_atomic(self, system_event_message, timestamp):  
         log.info("System start message sent      : " + str(system_event_message['timestamp']))
         log.info("System start message received  : " + str(timestamp))
+        log.info("System start call fcn          : " + str(nanoseconds_since_midnight()))
         self.order_store.clear_order_store()
         self.order_book.reset_book()
         m = OuchServerMessages.SystemEvent(
@@ -181,6 +182,7 @@ class Exchange:
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
             cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
+
             self.outgoing_messages.extend(cancel_messages) 
 
       # """
