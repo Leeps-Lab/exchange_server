@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$#" -ne 1 ]; then
-        echo "usage: ./run_cda_groups.sh [num_groups] [flag]"
+        echo "usage: ./run_cda_groups.sh [num_groups]"
         exit 1
 fi
 
@@ -14,6 +14,6 @@ flag=$2
 
 for i in `seq $groups`;
 do
-	mkdir CDA_DATA
-	python3 run_exchange_server.py --host localhost --port 900$i --mechanism cda  --book_log CDA_DATA/${timestamp}_group_$i.log --${flag}
+	mkdir CDA_DATA i  > /dev/null 2> /dev/null
+	python3 run_exchange_server.py --host localhost --port 900$i --mechanism cda --book_log CDA_DATA/${timestamp}_group_$i.log 
 done
