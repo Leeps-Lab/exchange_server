@@ -52,7 +52,6 @@ class Exchange:
     def system_start_atomic(self, system_event_message, timestamp):  
         log.info("System start message sent      : " + str(system_event_message['timestamp']))
         log.info("System start message received  : " + str(timestamp))
-        log.info("System start call fcn          : " + str(nanoseconds_since_midnight()))
         self.order_store.clear_order_store()
         self.order_book.reset_book()
         m = OuchServerMessages.SystemEvent(
@@ -152,7 +151,11 @@ class Exchange:
             enter_into_book = True if time_in_force > 0 else False    
             if time_in_force > 0 and time_in_force < 99998:     #schedule a cancellation at some point in the future
                 cancel_order_message = self.cancel_order_from_enter_order( enter_order_message )
-                self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message))
+                # cancel_order_atomic has 2 args, timestamp is missing. but
+                # adding timestamp here will result cancel order to have an 
+                # incorrect timestamp. 
+                # will go with old timestamp, for now.  - ali
+                self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
             
             enter_order_func = self.order_book.enter_buy if enter_order_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
             (crossed_orders, entered_order) = enter_order_func(
