@@ -51,3 +51,14 @@ class BookPriceQ:
 				fulfilling_orders.append(self.order_q.popitem(last=False))
 				self.interest -= next_order_volume
 		return (volume - volume_to_fill, fulfilling_orders)
+
+class IEXBookPriceQ(BookPriceQ):
+	def __init__(self, price, lit=False):
+		super().__init__(price)
+		self.lit = lit
+	
+	def __str__(self):
+		return '${} Interest: {}, Lit: {}, Orders: {}'.format(self.price, self.interest, 
+			self.lit, ', '.join([
+				'{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]
+				))

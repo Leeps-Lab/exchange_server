@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import logging as log
-from exchange.order_books.book_price_q import BookPriceQ
+from book_price_q import BookPriceQ, IEXBookPriceQ
 
 
 class Node:
@@ -8,6 +8,9 @@ class Node:
 		self.data = data
 		self.next = next
 		self.prev = prev
+	
+	def __repr__(self):
+		return '<node  price:{}, lit:{}>'.format(self.data.price, self.data.lit)
 
 class SortedIndexedDefaultList:
 	'''
@@ -28,7 +31,6 @@ class SortedIndexedDefaultList:
 
 	def __str__(self):
 		return ',\n'.join([str(i) for i in self.ascending_items()])
-
 
 	def insert(self, data):
 		id = self.index_func(data)
@@ -101,16 +103,42 @@ class SortedIndexedDefaultList:
 			yield current.data
 			current = current.prev
 
+class IEXAskList(SortedIndexedDefaultList):
+
+	def __init__(self):
+		super().__init__(index_func=lambda bpq: ( bpq.price,  not bpq.lit), 
+			initializer=lambda price: IEXBookPriceQ(price))
+	
+	def remove(self, index):
+		price, lit = index
+		adjusted_index = price, not lit
+		super().remove(adjusted_index)
+
+class IEXBidList(SortedIndexedDefaultList):
+
+	def __init__(self):
+		super().__init__(index_func=lambda bpq: ( - bpq.price, not bpq.lit), 
+			initializer=lambda price: IEXBookPriceQ(price))
+	
+	def remove(self, index):
+		price, lit = index
+		adjusted_index =  - price, not lit
+		super().remove(adjusted_index)
 
 if __name__ == '__main__':
-	l = SortedIndexedDefaultList(index_func = lambda bpq : bpq.price, initializer = lambda price: BookPriceQ(price))
-	print(l)
-	l.insert(BookPriceQ(10))
-	print(l)
-	l.insert(BookPriceQ(11))
-	print(l)
-	l.insert(BookPriceQ(9))
-	print(l)
-	l.remove(9)
-	print(l)
+	for l in IEXAskList(), IEXBidList():
+		for price in (9, 11, 12 , 14):
+			l.insert(IEXBookPriceQ(price))
+		for price in (9, 10, 12 , 14):
+			l.insert(IEXBookPriceQ(price, lit=True))
+		for each in l.ascending_items():
+			print(each)
+		print()
+		l.remove((9, False))
+		l.remove((12, False))
+		l.remove((9, True))
+		for each in l.ascending_items():
+			print(each)
+		print()
+	
 
