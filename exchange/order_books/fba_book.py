@@ -65,14 +65,15 @@ class FBABook:
   Asks:
 {}""".format(self.bids, self.asks)
 
-    def reset_book(self):                       #jason
+    def reset_book(self):						#jason
         log.info('Clearing All Entries from Order Book')
         self.bid = MIN_BID
         self.ask = MAX_ASK
-        for id in list(self.asks.index):        #force as list because can't interate dict and delete keys at same time
+        for id in list(self.asks.index):		#force as list because can't interate dict and delete keys at same time
                     self.asks.remove(id)
         for id in list(self.bids.index):
                     self.bids.remove(id)
+
 
 
     def cancel_order(self, id, price, volume, buy_sell_indicator):
@@ -125,13 +126,14 @@ class FBABook:
 
     def batch_process(self):
         log.debug('Running batch auction..')
-        log.debug('Order book=%s', self)
+        log.debug('order book=%s', self)
         asks_volume = sum([price_book.interest for price_book in self.asks.ascending_items()])
+        log.debug('total volume offered in batch: %d', asks_volume)
         all_orders_descending = merge(
             self.asks.descending_items(),
             self.bids.ascending_items(), 
             key= lambda bpq: -bpq.price)
-        log.debug('Ask prices=%s:%s, bid prices=%s:%s', 
+        log.debug('ask prices=%s:%s, \n bid prices=%s:%s', 
             [(p.price, p.interest) for p in self.asks.ascending_items()],
             [(p.price, p.interest) for p in self.asks.descending_items()], 
             [(p.price, p.interest) for p in self.bids.ascending_items()],
@@ -140,7 +142,7 @@ class FBABook:
         
         orders_volume = prior_orders_volume = 0
         clearing_price=None
-        log.debug('Calculating clearing price..')
+        log.debug('calculating clearing price..')
         bpq=prior_bpq=None
 
         min_real_price = None
@@ -173,7 +175,7 @@ class FBABook:
                     max_real_price = bpq.price
                 if min_real_price is None or MIN_BID<bpq.price<min_real_price:
                     min_real_price = bpq.price
-                log.debug('looping until price <%s: current price:%s', MAX_ASK, bpq.price)
+                log.debug(' looping until price <%s: current price:%s', MAX_ASK, bpq.price)
                 if bpq.price<MAX_ASK:
                     break
 
@@ -183,18 +185,23 @@ class FBABook:
         elif prior_orders_volume==asks_volume and prior_bpq is not None:
             if prior_bpq.price==MAX_ASK and MIN_BID<bpq.price<MAX_ASK:
                 clearing_price=bpq.price
+                log.debug(' clearing price set as bpq: {} -> {}'.format(bpq.price, clearing_price))
             elif prior_bpq.price<MAX_ASK and MIN_BID<bpq.price:
                 clearing_price = math.ceil((prior_bpq.price+bpq.price)/2)
+                log.debug(' clearing price is the average of {} and {} -> {}'.format(prior_bpq.price, bpq.price, clearing_price))
             elif MIN_BID<prior_bpq.price<MAX_ASK and MIN_BID==bpq.price:
                 clearing_price=prior_bpq.price
+                log.debug(' clearing price set as prior bpq: {} -> {}'.format(prior_bpq.price, clearing_price))
             elif prior_bpq.price==MIN_BID:
                 clearing_price=min_real_price
+                log.debug(' clearing price set as min real price: {}'.format(clearing_price))
         elif orders_volume>asks_volume:
             clearing_price = max(bpq.price, min_real_price)
+            log.debug(' clearing price set as max of bpq and min real price: {}:{} -> {}'.format(bpq.price, min_real_price, clearing_price))
 
 
 
-        log.debug('Clearing price: %s', clearing_price)
+        log.debug('market clears @ %s', clearing_price)
 
         matches = []
         ask_it = self.asks.ascending_items()
@@ -202,35 +209,46 @@ class FBABook:
             try:
                 ask_node = next(ask_it)
                 ask_price = ask_node.price
-
+                log.debug('check ask node:{}'.format(ask_node))
                 #iterate over bids starting with highest
                 for bid_node in self.bids.ascending_items():
+                    log.debug('   check bid node:{}'.format(bid_node))
                     bid_price = bid_node.price
                     if bid_price<clearing_price or ask_price>clearing_price:
                         break
                     else:
                         for (bid_id, volume) in list(bid_node.order_q.items()):
                             volume_filled = 0
+                            log.debug('      process bid {} with volume {}.'.format(bid_id, volume))
                             while volume_filled < volume and ask_price <= clearing_price:
                                 (filled, fulfilling_orders) = ask_node.fill_order(volume-volume_filled)
                                 volume_filled += filled
-                                log.debug('volume filled: %d, filled: %d, vol: %d', volume_filled, filled, volume)
                                 matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
-
-                                if volume_filled < volume: #THIS USED TO BE <= BUT BUG VANQUISHER JASON CAME TO THE RESCUE
-                                    self.asks.remove(ask_price) #remove this line #also test putting back the = in previous line
-                                    ask_node = next(ask_it)
-                                    ask_price = ask_node.price
-
+                                log.debug('      all matching orders at node {}'.format(matches))
+                                if ask_node.interest == 0:
+                                    log.debug('   no more interest at ask node, removing...')
+                                    self.asks.remove(ask_price) 
+                                if volume_filled < volume:
+                                    log.info('      bid is filled only partially {}/{}.'.format(volume_filled, volume))
+                                    try: 
+                                        ask_node = next(ask_it)
+                                        ask_price = ask_node.price
+                                    except StopIteration as e:
+                                        log.debug(' stopped iteration at {}'.format(ask_price)) 
+                                        break
                             #update bid in book
-                            assert volume_filled<=volume  #WHY DOES THIS EXIST???
+                            assert volume_filled<=volume
                             if volume_filled==volume:
+                                log.debug('      bid {} is filled completely {}/{}.'.format(bid_id, volume_filled, volume))
                                 bid_node.cancel_order(bid_id)
                                 if bid_node.interest == 0:
+                                    log.debug('    no more interest at bid node, removing...')
                                     self.bids.remove(bid_node.price)
                             elif volume_filled >0:
+                                log.debug('     reducing {} out of {}, bid id: {}'.format(volume_filled, volume, bid_id))
                                 bid_node.reduce_order(bid_id, volume - volume_filled)
-            except StopIteration:
+            except StopIteration as e:
+                log.debug(e)
                 pass
         return matches
 
