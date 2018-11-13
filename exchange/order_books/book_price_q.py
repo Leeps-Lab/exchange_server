@@ -53,12 +53,47 @@ class BookPriceQ:
 		return (volume - volume_to_fill, fulfilling_orders)
 
 class IEXBookPriceQ(BookPriceQ):
-	def __init__(self, price, lit=False):
+	def __init__(self, price, buy_sell_indicator, lit=False):
 		super().__init__(price)
+		self.side = buy_sell_indicator
 		self.lit = lit
+
+	def add_order(self, order_id, volume):
+		self.interest += volume
+		self.order_q[order_id] = volume
+
+	def cancel_order(self, order_id):
+		self.interest -= self.order_q[order_id]
+		del self.order_q[order_id]
+
+	def fill_order(self, volume):
+		'''
+		I have to know whether all volume on 
+		order id is drained, so I can remove from pegs.
+		'''
+		volume_to_fill = volume
+		fulfilling_orders = []
+		drained_orders = []
+		while volume_to_fill > 0 and len(self.order_q)>0:
+			log.debug('  fill_order: volume_to_fill = %s', volume_to_fill)
+			next_order_id = next(iter(self.order_q))
+			next_order_volume = self.order_q[next_order_id]
+			if next_order_volume > volume_to_fill:
+				assert self.order_q[next_order_id] ==next_order_volume
+				self.order_q[next_order_id] = next_order_volume-volume_to_fill
+				fulfilling_orders.append((next_order_id, volume_to_fill))
+				self.interest -= volume_to_fill	
+				volume_to_fill = 0			
+			else:
+				volume_to_fill -= next_order_volume
+				drained_order_id = self.order_q.popitem(last=False)
+				fulfilling_orders.append(drained_order_id)
+				drained_orders.append(drained_order_id) 
+				self.interest -= next_order_volume
+		return (volume - volume_to_fill, fulfilling_orders, drained_orders) 
 	
 	def __str__(self):
-		return '${} Interest: {}, Lit: {}, Orders: {}'.format(self.price, self.interest, 
-			self.lit, ', '.join([
+		return '	${} Interest: {}, Lit: {}, Orders: {}'.format(self.price, 
+			self.interest, self.lit, ', '.join([
 				'{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]
 				))
