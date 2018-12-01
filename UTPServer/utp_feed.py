@@ -30,7 +30,7 @@ class FeedUnit:
     def dictize(self):
         return {slot: getattr(self, slot) for slot in self.__slots__}
 
-    def __bytes__(self, **defaults):
+    def __bytes__(self):
         bytes_message = {**self.protocol_defaults}
         for slot in self.__slots__:
             if slot in self.protocol_defaults:
