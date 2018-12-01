@@ -93,12 +93,15 @@ class Feed:
 
     def __iter__(self):
         line = None
-        for row in self.feed:
+        time_slept = 0
+        for feed_unit in self.feed:
+            time_to_sleep = feed_unit.time - time_slept
             try:
-                line = bytes(row)
+                line = bytes(feed_unit)
             except Exception as e:
                 log.exception('error encoding row, ignoring: %s', e)
-            yield line
+            yield (time_to_sleep, line)
+            time_slept += time_to_sleep
         
     def __str__(self):
         return '\n'.join(str(feed_unit) for feed_unit in self.feed)

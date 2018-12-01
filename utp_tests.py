@@ -1,11 +1,8 @@
 from UTPServer.utp_feed import *
 import time
 from random import randrange
+from UTPServer.utp_server import main
 
 
 if __name__ == '__main__':
-    feed = Feed(BCSFeedUnit)
-    feed.from_csv('UTPServer/test_data/test.csv')
-    print(feed)
-    for row in feed:
-        print(row)
+    main()
