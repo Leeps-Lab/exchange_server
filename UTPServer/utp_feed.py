@@ -52,7 +52,7 @@ class BCSFeedUnit(FeedUnit):
         'timestamp_1':nanoseconds_since_midnight(),
         'part_token':95060000,
         'timestamp_2':nanoseconds_since_midnight(),
-        'symbol':b'LEEPS',
+        'symbol':b'leeeeeeeeps',
         'bid_price':1001000,
         'bid_size':1,
         'ask_price':1002000,
