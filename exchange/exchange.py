@@ -42,11 +42,8 @@ class Exchange:
         self.outgoing_messages = deque()
         self.order_ref_numbers = itertools.count(1, 2)  # odds
         self.order_book_logger = order_book_logger
-        self.start_time = 0 #jason
-        # best bid and offer
-        self.best_bid = None
-        self.best_ask = None
-
+        self.start_time = 0 #jason       
+        self.outgoing_broadcast_messages = deque()  # ali
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
             OuchClientMessages.ReplaceOrder: self.replace_order_atomic,
@@ -188,7 +185,7 @@ class Exchange:
             self.outgoing_messages.extend(cross_messages)
             if new_bbo:
                 bbo_message = self.best_quote_update(enter_order_message, new_bbo, timestamp)
-                self.outgoing_messages.append(bbo_message)
+                self.outgoing_broadcast_messages.append(bbo_message)
 
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
@@ -205,7 +202,7 @@ class Exchange:
             self.outgoing_messages.extend(cancel_messages) 
             if new_bbo:
                 bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
-                self.send_outgoing_messages.append(bbo_message)
+                self.outgoing_broadcast_messages.append(bbo_message)
 
       # """
         # NASDAQ may respond to the Replace Order Message in several ways:
@@ -302,7 +299,14 @@ class Exchange:
                     self.outgoing_messages.extend(cross_messages)
                     if new_bbo:
                         bbo_message = self.best_quote_update(replace_order_message, new_bbo, timestamp)
-                        self.send_outgoing_messages.append(bbo_message)
+                        self.outgoing_broadcast_messages.append(bbo_message)
+
+    async def send_outgoing_broadcast_messages(self):
+        while len(self.outgoing_broadcast_messages)>0:
+            m = self.outgoing_broadcast_messages.popleft()
+            log.debug('Sending message %s', m)
+            await self.message_broadcast(m)
+            log.debug('Sent message %s', m)    
 
     async def send_outgoing_messages(self):
         while len(self.outgoing_messages)>0:
@@ -317,6 +321,7 @@ class Exchange:
             timestamp = nanoseconds_since_midnight()
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
+            await self.send_outgoing_broadcast_messages()
             if self.order_book_logger is not None:
                 self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
         else:

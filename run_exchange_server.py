@@ -37,6 +37,7 @@ def main():
         book = CDABook()
         exchange = Exchange(order_book = book,
                             order_reply = server.send_server_response,
+                            message_broadcast = server.broadcast_server_message,
                             loop = loop,
                             order_book_logger = book_logger)
     elif options.mechanism == 'fba':
