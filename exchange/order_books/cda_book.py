@@ -3,9 +3,12 @@ from collections import OrderedDict
 import logging as log
 from exchange.order_books.book_price_q import BookPriceQ
 from exchange.order_books.list_elements import SortedIndexedDefaultList
+from collections import namedtuple
 
 MIN_BID = 0
 MAX_ASK = 2147483647
+
+bbo = namedtuple('BestQuotes', 'best_bid volume_at_best_bid best_ask volume_at_best_ask')
 
 class CDABook:
 	def __init__(self):
@@ -15,7 +18,10 @@ class CDABook:
 							initializer = lambda p: BookPriceQ(p),
 							index_multiplier = -1)
 		self.asks = SortedIndexedDefaultList(index_func = lambda bq: bq.price, 
-							initializer = lambda p: BookPriceQ(p))	
+							initializer = lambda p: BookPriceQ(p))
+		self.bbo = bbo(best_bid=MIN_BID, volume_at_best_bid=0, best_ask=MAX_ASK,
+			volume_at_best_ask=0)
+
 	def __str__(self):
 		return """  Spread: {} - {}
   Bids:
@@ -39,7 +45,8 @@ class CDABook:
 		fully cancelled, otherwise an order of volume volume remains.
 		'''
 		orders = self.bids if buy_sell_indicator == b'B' else self.asks
-		
+		best_ask_update = None
+		best_bid_update = None
 		if price not in orders or id not in orders[price].order_q:
 			log.debug('No order in the book to cancel, cancel ignored.')
 			return []
@@ -58,11 +65,11 @@ class CDABook:
 				amount_canceled = 0
 
 			if price == self.bid:
-				self.update_bid()
+				bbo_update = self.update_bid()
 			elif price == self.ask:
-				self.update_ask()
+				bbo_update = self.update_ask()
 
-			return [(id, amount_canceled)]
+			return [(id, amount_canceled)], bbo_update
 			
 
 	def update_bid(self):
@@ -70,6 +77,13 @@ class CDABook:
 			self.bid = MIN_BID 
 		else:
 			self.bid = self.bids.start.data.price
+		best_ask, vol_ask = self.bbo.best_ask, self.bbo.volume_at_best_ask
+		best_bid, vol_bid = self.bids.start.data.price, self.bids.start.data.interest
+		new_bbo = bbo(best_ask=best_ask, best_bid=best_bid, volume_at_best_bid=vol_bid,
+			volume_at_best_ask=vol_ask)
+		if new_bbo != self.bbo:
+			self.bbo = new_bbo
+			return new_bbo
 		#while self.price_q[self.bid].interest == 0 and self.bid > self.min_price:
 		#	self.bid -= self.decrement
 
@@ -78,6 +92,13 @@ class CDABook:
 			self.ask = MAX_ASK
 		else:
 			self.ask = self.asks.start.data.price
+		best_bid, vol_bid = self.bbo.best_bid, self.bbo.volume_at_best_bid
+		best_ask, vol_ask = self.asks.start.data.price, self.asks.start.data.interest
+		new_bbo = bbo(best_ask=best_ask, best_bid=best_bid, volume_at_best_bid=vol_bid,
+			volume_at_best_ask=vol_ask)
+		if new_bbo != self.bbo:
+			self.bbo = new_bbo
+			return new_bbo
 		#while self.price_q[self.ask].interest == 0 and self.ask < self.max_price:
 		#	self.ask += self.decrement		
 
@@ -85,6 +106,8 @@ class CDABook:
 		'''
 		Enter a limit order to buy at price price: first, try and fulfill as much as possible, then enter a
 		'''
+		best_bid_update = None
+		best_ask_update = None
 		order_crosses=[]
 		entered_order = None
 		volume_to_fill = volume
@@ -100,7 +123,7 @@ class CDABook:
 				
 				if price_q.interest==0:
 					self.asks.remove(price_q.price)
-					self.update_ask()
+					bbo_update = self.update_ask()
 
 				if volume_to_fill <= 0:
 					break					
@@ -108,15 +131,17 @@ class CDABook:
 
 		if volume_to_fill > 0 and enter_into_book:
 			self.bids[price].add_order(id, volume_to_fill)
-			self.update_bid()
+			bbo_update = self.update_bid()
 			entered_order = (id, price, volume_to_fill)
-		return (order_crosses, entered_order) 
+		return (order_crosses, entered_order, bbo_update) 
 
 	def enter_sell(self, id, price, volume, enter_into_book):
 		'''
 		Enter a limit order to sell at price price: first try and fulfill as much as possible, then enter the
 		remaining as a limit sell
 		'''
+		best_bid_update = None
+		best_ask_update = None
 		order_crosses=[]
 		entered_order = None
 		volume_to_fill = volume
@@ -132,20 +157,20 @@ class CDABook:
 				
 				if price_q.interest==0:
 					self.bids.remove(price_q.price)
-					self.update_bid()
+					bbo_update = self.update_bid()
 
 				if volume_to_fill <= 0:
 					break					
 			
 		if volume_to_fill > 0 and enter_into_book:
 			self.asks[price].add_order(id, volume_to_fill)
-			self.update_ask()
+			bbo_update = self.update_ask()
 			entered_order = (id, price, volume_to_fill)
-		return (order_crosses, entered_order) 
+		return (order_crosses, entered_order, bbo_update) 
 
 def test():
 	book = CDABook()
-	(crossed_orders, entered_order) =  book.enter_buy(1, 10, 2, enter_into_book = True)
+	(crossed_orders, entered_order, best_bid_update, best_ask_update) =  book.enter_buy(1, 10, 2, enter_into_book = True)
 	print(crossed_orders, entered_order)
 	assert len(crossed_orders)==0
 	assert entered_order==(1,10,2)
@@ -153,7 +178,7 @@ def test():
 
 	print(book)
 
-	(crossed_orders, entered_order)  = book.enter_buy(2, 11, 3, enter_into_book = True)
+	(crossed_orders, entered_order, best_bid_update, best_ask_update)  = book.enter_buy(2, 11, 3, enter_into_book = True)
 	print(crossed_orders, entered_order)
 	assert len(crossed_orders)==0
 	assert entered_order==(2,11,3)
@@ -161,7 +186,7 @@ def test():
 
 	print(book)
 
-	(crossed_orders, entered_order) = book.enter_sell(3, 8, 10, enter_into_book = True)
+	(crossed_orders, entered_order, best_bid_update, best_ask_update) = book.enter_sell(3, 8, 10, enter_into_book = True)
 	print(crossed_orders, entered_order)
 	assert len(crossed_orders)==2
 	assert crossed_orders[0]==((3, 2), 11, 3)

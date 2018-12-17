@@ -43,6 +43,9 @@ class Exchange:
         self.order_ref_numbers = itertools.count(1, 2)  # odds
         self.order_book_logger = order_book_logger
         self.start_time = 0 #jason
+        # best bid and offer
+        self.best_bid = None
+        self.best_ask = None
 
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
@@ -115,6 +118,14 @@ class Exchange:
                             reason = reason)
         m.meta = cancel_order_message.meta
         return m
+    
+    def best_quote_update(self, order_message, new_bbo, timestamp):
+        m = OuchServerMessages.BestBidAndOffer(timestamp=timestamp, stock=b'AMAZGOOG',
+            best_bid=new_bbo.best_bid, volume_at_best_bid=new_bbo.volume_at_best_bid,
+            best_ask=new_bbo.best_ask, volume_at_best_ask=new_bbo.volume_at_best_ask 
+        )
+        m.meta = order_message.meta
+        return m
 
     def process_cross(self, id, fulfilling_order_id, price, volume, timestamp, liquidity_flag = b'?'):
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
@@ -161,7 +172,7 @@ class Exchange:
                 self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
             
             enter_order_func = self.order_book.enter_buy if enter_order_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
-            (crossed_orders, entered_order) = enter_order_func(
+            (crossed_orders, entered_order, new_bbo) = enter_order_func(
                     enter_order_message['order_token'],
                     enter_order_message['price'],
                     enter_order_message['shares'],
@@ -175,13 +186,16 @@ class Exchange:
             cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
                                 for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
             self.outgoing_messages.extend(cross_messages)
+            if new_bbo:
+                bbo_message = self.best_quote_update(enter_order_message, new_bbo, timestamp)
+                self.outgoing_messages.append(bbo_message)
 
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
             log.debug('No such order to cancel, ignored')
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
-            cancelled_orders = self.order_book.cancel_order(
+            cancelled_orders, new_bbo = self.order_book.cancel_order(
                 id = cancel_order_message['order_token'],
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
@@ -189,6 +203,9 @@ class Exchange:
             cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
             self.outgoing_messages.extend(cancel_messages) 
+            if new_bbo:
+                bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
+                self.send_outgoing_messages.append(bbo_message)
 
       # """
         # NASDAQ may respond to the Replace Order Message in several ways:
@@ -217,7 +234,7 @@ class Exchange:
         else:
             store_entry = self.order_store.orders[replace_order_message['existing_order_token']]
             log.debug('store_entry: %s', store_entry)
-            cancelled_orders = self.order_book.cancel_order(
+            cancelled_orders, _ = self.order_book.cancel_order(
                 id = replace_order_message['existing_order_token'],
                 price = store_entry.first_message['price'],
                 volume = 0,
@@ -247,7 +264,7 @@ class Exchange:
                         self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
                     
                     enter_order_func = self.order_book.enter_buy if original_enter_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
-                    (crossed_orders, entered_order) = enter_order_func(
+                    (crossed_orders, entered_order, new_bbo) = enter_order_func(
                             replace_order_message['replacement_order_token'],
                             replace_order_message['price'],
                             liable_shares,
@@ -283,6 +300,9 @@ class Exchange:
                                                     volume, 
                                                     timestamp=timestamp)]
                     self.outgoing_messages.extend(cross_messages)
+                    if new_bbo:
+                        bbo_message = self.best_quote_update(replace_order_message, new_bbo, timestamp)
+                        self.send_outgoing_messages.append(bbo_message)
 
     async def send_outgoing_messages(self):
         while len(self.outgoing_messages)>0:
