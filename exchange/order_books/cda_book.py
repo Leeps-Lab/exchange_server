@@ -45,8 +45,6 @@ class CDABook:
 		fully cancelled, otherwise an order of volume volume remains.
 		'''
 		orders = self.bids if buy_sell_indicator == b'B' else self.asks
-		best_ask_update = None
-		best_bid_update = None
 		if price not in orders or id not in orders[price].order_q:
 			log.debug('No order in the book to cancel, cancel ignored.')
 			return []
@@ -106,8 +104,6 @@ class CDABook:
 		'''
 		Enter a limit order to buy at price price: first, try and fulfill as much as possible, then enter a
 		'''
-		best_bid_update = None
-		best_ask_update = None
 		order_crosses=[]
 		entered_order = None
 		volume_to_fill = volume
@@ -140,8 +136,6 @@ class CDABook:
 		Enter a limit order to sell at price price: first try and fulfill as much as possible, then enter the
 		remaining as a limit sell
 		'''
-		best_bid_update = None
-		best_ask_update = None
 		order_crosses=[]
 		entered_order = None
 		volume_to_fill = volume
