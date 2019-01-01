@@ -105,10 +105,11 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             {'msg_type': b'N'},
             ['order_token']
         )
-    SystemEvent = ('{leeps_timestamp}:{event_code}',          #jason
-            {'msg_type': b'S'},
-            ['leeps_timestamp', 'event_code']
+    SystemStart = ('{timestamp}:{event_code}',          #jason
+            {'msg_type': b'H'},
+            ['timestamp', 'event_code']
         )
+
 
 LookupByHeaderBytesMixin = create_attr_lookup_mixin(
     'LookupByHeaderBytesMixin_ServerMsgs', 'header_bytes')

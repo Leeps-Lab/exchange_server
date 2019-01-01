@@ -47,7 +47,7 @@ class CDABook:
 		orders = self.bids if buy_sell_indicator == b'B' else self.asks
 		if price not in orders or id not in orders[price].order_q:
 			log.debug('No order in the book to cancel, cancel ignored.')
-			return []
+			return [], None
 		else:
 			amount_canceled=0
 			current_volume=orders[price].order_q[id]
@@ -61,7 +61,7 @@ class CDABook:
 				amount_canceled = current_volume - volume
 			else:
 				amount_canceled = 0
-
+			bbo_update = None
 			if price == self.bid:
 				bbo_update = self.update_bid()
 			elif price == self.ask:
@@ -72,11 +72,13 @@ class CDABook:
 
 	def update_bid(self):
 		if self.bids.start is None:
-			self.bid = MIN_BID 
+			self.bid = MIN_BID
+			best_bid, vol_bid = MIN_BID, 0 
+
 		else:
 			self.bid = self.bids.start.data.price
+			best_bid, vol_bid = self.bids.start.data.price, self.bids.start.data.interest
 		best_ask, vol_ask = self.bbo.best_ask, self.bbo.volume_at_best_ask
-		best_bid, vol_bid = self.bids.start.data.price, self.bids.start.data.interest
 		new_bbo = bbo(best_ask=best_ask, best_bid=best_bid, volume_at_best_bid=vol_bid,
 			volume_at_best_ask=vol_ask)
 		if new_bbo != self.bbo:
@@ -88,10 +90,11 @@ class CDABook:
 	def update_ask(self):
 		if self.asks.start is None:
 			self.ask = MAX_ASK
+			best_ask, vol_ask = MAX_ASK, 0
 		else:
 			self.ask = self.asks.start.data.price
+			best_ask, vol_ask = self.asks.start.data.price, self.asks.start.data.interest
 		best_bid, vol_bid = self.bbo.best_bid, self.bbo.volume_at_best_bid
-		best_ask, vol_ask = self.asks.start.data.price, self.asks.start.data.interest
 		new_bbo = bbo(best_ask=best_ask, best_bid=best_bid, volume_at_best_bid=vol_bid,
 			volume_at_best_ask=vol_ask)
 		if new_bbo != self.bbo:
@@ -106,6 +109,7 @@ class CDABook:
 		'''
 		order_crosses=[]
 		entered_order = None
+		bbo_update = None
 		volume_to_fill = volume
 		if price >= self.ask:
 			for price_q in self.asks.ascending_items():
@@ -138,6 +142,7 @@ class CDABook:
 		'''
 		order_crosses=[]
 		entered_order = None
+		bbo_update = None
 		volume_to_fill = volume
 		if price <= self.bid:
 			for price_q in self.bids.ascending_items():

@@ -14,7 +14,7 @@ import itertools
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 
 p = configargparse.ArgParser()
-p.add('--port', default=12345)
+p.add('--port', default=9001)
 p.add('--host', default='127.0.0.1', help="Address of server")
 options, args = p.parse_known_args()
 
@@ -38,16 +38,12 @@ def main():
             except asyncio.IncompleteReadError:
                 log.error('connection terminated without response')
                 return None
-            log.debug('Received Ouch header as binary: %r', header)
-            log.debug('bytes: %r', list(header))
             message_type = OuchServerMessages.lookup_by_header_bytes(header)
             try:
                 payload = (await reader.readexactly(message_type.payload_size))
             except asyncio.IncompleteReadError as err:
                 log.error('Connection terminated mid-packet!')
                 return None
-            log.debug('Received Ouch payload as binary: %r', payload)
-            log.debug('bytes: %r', list(payload))
 
             response_msg = message_type.from_bytes(payload, header=False)
             return response_msg
@@ -71,12 +67,10 @@ def main():
                     minimum_quantity=1,
                     cross_type=b'N',
                     customer_type=b' ')
-                print('send message: ', request)
                 log.info("Sending Ouch message: %s", request)
                 await send(request)
                 response = await recv()
-                print('recv message: ', response)
-                log.info("Received response Ouch message: %s", response)    
+                log.info("Received response Ouch message: %s:%d", response, len(response))    
                 await asyncio.sleep(4.0)
             
         writer.close()

@@ -214,7 +214,9 @@ class FBABook:
                 for bid_node in self.bids.ascending_items():
                     log.debug('   check bid node:{}'.format(bid_node))
                     bid_price = bid_node.price
+                    log.info('bid price {}, ask price {}, clearing price {}'.format(bid_price, ask_price, clearing_price))
                     if bid_price<clearing_price or ask_price>clearing_price:
+                        log.debug('no cross at {}'.format(ask_price))
                         break
                     else:
                         for (bid_id, volume) in list(bid_node.order_q.items()):

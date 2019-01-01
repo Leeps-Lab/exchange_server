@@ -9,7 +9,7 @@ from collections import deque
 
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 from OuchServer.ouch_server import nanoseconds_since_midnight
-from OuchServer.ouch_server import printTime 
+
 from exchange.order_store import OrderStore
 
 ###
@@ -48,31 +48,27 @@ class Exchange:
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
             OuchClientMessages.ReplaceOrder: self.replace_order_atomic,
             OuchClientMessages.CancelOrder: self.cancel_order_atomic,
-            OuchClientMessages.SystemEvent: self.system_event_atomic,  #jason
+            OuchClientMessages.SystemStart: self.system_start_atomic,
             OuchClientMessages.ModifyOrder: None}
 
-    def system_event_atomic(self, system_event_message, timestamp):      #jason
-        if system_event_message['event_code'] == b'E':
-            log.info("End of Day")
-            self.loop.stop()
-            #self.loop.close()
-        else:
-            self.order_store.clear_order_store()
-            self.order_book.reset_book()
-            
-            #self.start_time = nanoseconds_since_midnight()
-            #log.info(printTime(self.start_time))
-            leeps_time = system_event_message['leeps_timestamp']
-            log.info(leeps_time)
-            result = 0
-            for b in leeps_time:
-                result = (result << 4) + int(b)
-            self.start_time = result * 1000000
-            log.info(self.start_time)
-            #self.start_time = nanoseconds_since_midnight()
+    def system_start_atomic(self, system_event_message, timestamp):  
+        log.info("System start message sent      : " + str(system_event_message['timestamp']))
+        log.info("System start message received  : " + str(timestamp))
+        self.order_store.clear_order_store()
+        self.order_book.reset_book()
+        m = OuchServerMessages.SystemEvent(
+            event_code=b'S',
+            timestamp=timestamp)
+        m.meta = system_event_message.meta
+        # await self.message_broadcast(
+        #     OuchServerMessages.SystemEvent(
+        #     event_code=b'S',
+        #     timestamp=timestamp))
+        self.outgoing_messages.append(m)
+
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
-        m=OuchServerMessages.Accepted(
+        m = OuchServerMessages.Accepted(
             timestamp=timestamp,
             order_reference_number=order_reference_number, 
             order_state=order_state,
@@ -199,6 +195,7 @@ class Exchange:
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
             cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
+
             self.outgoing_messages.extend(cancel_messages) 
             if new_bbo:
                 bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
