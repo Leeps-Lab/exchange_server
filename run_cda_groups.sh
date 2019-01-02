@@ -18,5 +18,5 @@ fi
 for i in `seq $groups`;
 do
 	mkdir -p cda_data
-	python3 run_exchange_server.py --host 0.0.0.0 --port 900$i --mechanism cda  --book_log cda_data/${timestamp}_group_$i.log --${flag} &
+	python3 run_exchange_server.py --host 0.0.0.0 --port 900$i --debug --mechanism cda  --book_log cda_data/${timestamp}_group_$i.log --${flag} &
 done
