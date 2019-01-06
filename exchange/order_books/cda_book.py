@@ -126,7 +126,7 @@ class CDABook:
 				
 				if price_q.interest==0:
 					self.asks.remove(price_q.price)
-					bbo_update = self.update_ask()
+				bbo_update = self.update_ask()
 
 				if volume_to_fill <= 0:
 					break					
@@ -159,7 +159,7 @@ class CDABook:
 				
 				if price_q.interest==0:
 					self.bids.remove(price_q.price)
-					bbo_update = self.update_bid()
+				bbo_update = self.update_bid()
 
 				if volume_to_fill <= 0:
 					break					
