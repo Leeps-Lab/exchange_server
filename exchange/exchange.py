@@ -220,7 +220,7 @@ class Exchange:
         else:
             store_entry = self.order_store.orders[replace_order_message['existing_order_token']]
             log.debug('store_entry: %s', store_entry)
-            cancelled_orders, _ = self.order_book.cancel_order(
+            cancelled_orders, new_bbo_post_cancel = self.order_book.cancel_order(
                 id = replace_order_message['existing_order_token'],
                 price = store_entry.first_message['price'],
                 volume = 0,
@@ -250,7 +250,7 @@ class Exchange:
                         self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
                     
                     enter_order_func = self.order_book.enter_buy if original_enter_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
-                    (crossed_orders, entered_order, new_bbo) = enter_order_func(
+                    crossed_orders, entered_order, new_bbo_post_enter = enter_order_func(
                             replace_order_message['replacement_order_token'],
                             replace_order_message['price'],
                             liable_shares,
@@ -286,8 +286,15 @@ class Exchange:
                                                     volume, 
                                                     timestamp=timestamp)]
                     self.outgoing_messages.extend(cross_messages)
-                    if new_bbo:
-                        bbo_message = self.best_quote_update(replace_order_message, new_bbo, timestamp)
+
+                    bbo_message = None
+                    if new_bbo_post_enter:
+                        bbo_message = self.best_quote_update(replace_order_message, 
+                            new_bbo_post_enter, timestamp)
+                    elif new_bbo_post_cancel:
+                        bbo_message = self.best_quote_update(replace_order_message, 
+                            new_bbo_post_cancel, timestamp)
+                    if bbo_message:
                         self.outgoing_broadcast_messages.append(bbo_message)
 
     async def send_outgoing_broadcast_messages(self):
