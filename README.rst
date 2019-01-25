@@ -1,3 +1,8 @@
+Dependencies:
+
+::
+    pip install -r requirements.txt
+
 To run a CDA instance:
 
 ::
