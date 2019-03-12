@@ -41,6 +41,8 @@ class OuchFields(ProtocolFieldEnum):
     best_ask = ('I', 'the best ask')
     volume_at_best_bid = ('I', 'todo')
     volume_at_best_ask = ('I', 'todo')
+    next_bid = ('I', 'todo')
+    next_ask = ('I', 'todo')
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -155,7 +157,7 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
     BestBidAndOffer = ('{timestamp}:{stock}:bid:{volume_at_best_bid}@{best_bid}:ask:{volume_at_best_ask}@{best_ask}',
             {'msg_type': b'Q'},
             ['timestamp', 'stock', 'best_bid', 'volume_at_best_bid', 'best_ask', 
-             'volume_at_best_ask']
+             'volume_at_best_ask', 'next_bid', 'next_ask']
     )
     BrokenTrade = ('{timestamp}:XX{order_token}m{match_number}({reason})',
             {'msg_type': b'B'},

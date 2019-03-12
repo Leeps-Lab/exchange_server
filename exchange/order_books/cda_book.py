@@ -8,7 +8,7 @@ from collections import namedtuple
 MIN_BID = 0
 MAX_ASK = 2147483647
 
-bbo = namedtuple('BestQuotes', 'best_bid volume_at_best_bid best_ask volume_at_best_ask')
+bbo = namedtuple('BestQuotes', 'best_bid volume_at_best_bid best_ask volume_at_best_ask next_bid next_ask')
 
 class CDABook:
 	def __init__(self):
@@ -20,7 +20,7 @@ class CDABook:
 		self.asks = SortedIndexedDefaultList(index_func = lambda bq: bq.price, 
 							initializer = lambda p: BookPriceQ(p))
 		self.bbo = bbo(best_bid=MIN_BID, volume_at_best_bid=0, best_ask=MAX_ASK,
-			volume_at_best_ask=0)
+			volume_at_best_ask=0, next_bid=MIN_BID, next_ask=MAX_ASK)
 
 	def __str__(self):
 		return """  Spread: {} - {}
@@ -77,13 +77,17 @@ class CDABook:
 		if self.bids.start is None:
 			self.bid = MIN_BID
 			best_bid, vol_bid = MIN_BID, 0 
-
+			next_bid = MIN_BID
 		else:
 			self.bid = self.bids.start.data.price
 			best_bid, vol_bid = self.bids.start.data.price, self.bids.start.data.interest
-		best_ask, vol_ask = self.bbo.best_ask, self.bbo.volume_at_best_ask
+			try:
+				next_bid = self.bids.start.next.data.price
+			except:
+				next_bid = MIN_BID
+		best_ask, vol_ask, next_ask = self.bbo.best_ask, self.bbo.volume_at_best_ask, self.bbo.next_ask
 		new_bbo = bbo(best_ask=best_ask, best_bid=best_bid, volume_at_best_bid=vol_bid,
-			volume_at_best_ask=vol_ask)
+			volume_at_best_ask=vol_ask, next_bid=next_bid, next_ask=next_ask)
 		if new_bbo != self.bbo:
 			self.bbo = new_bbo
 			return new_bbo
@@ -94,12 +98,17 @@ class CDABook:
 		if self.asks.start is None:
 			self.ask = MAX_ASK
 			best_ask, vol_ask = MAX_ASK, 0
+			next_ask = MAX_ASK
 		else:
 			self.ask = self.asks.start.data.price
 			best_ask, vol_ask = self.asks.start.data.price, self.asks.start.data.interest
-		best_bid, vol_bid = self.bbo.best_bid, self.bbo.volume_at_best_bid
+			try:
+				next_ask = self.asks.start.next.data.price
+			except:
+				next_ask = MAX_ASK
+		best_bid, vol_bid, next_bid = self.bbo.best_bid, self.bbo.volume_at_best_bid, self.bbo.next_bid
 		new_bbo = bbo(best_ask=best_ask, best_bid=best_bid, volume_at_best_bid=vol_bid,
-			volume_at_best_ask=vol_ask)
+			volume_at_best_ask=vol_ask, next_bid=next_bid, next_ask=next_ask)
 		if new_bbo != self.bbo:
 			self.bbo = new_bbo
 			return new_bbo
