@@ -1,7 +1,5 @@
 import logging as log
 from collections import OrderedDict
-import pdb
-
 
 
 class BookPriceQ:
@@ -11,7 +9,10 @@ class BookPriceQ:
 		self.price = price
 	
 	def __str__(self):
-		return '${} Interest: {}, Orders: {}'.format(self.price, self.interest, ', '.join(['{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]))
+		return '${} Interest: {}, Orders: {}'.format(
+			self.price, self.interest, ', '.join(
+					['{}: {}'.format(id, volume) for (id, volume) 
+					 in self.order_q.items()]))
 
 	def add_order(self, order_id, volume):
 		self.interest += volume

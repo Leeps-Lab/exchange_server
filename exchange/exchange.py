@@ -23,7 +23,7 @@ from exchange.order_store import OrderStore
 
 
 class Exchange:
-    def __init__(self, order_book, order_reply, loop, order_book_logger = None, message_broadcast = None):
+    def __init__(self, order_book, order_reply, loop, message_broadcast = None):
         '''
         order_book - the book!
         order_reply - post office reply function, takes in 
@@ -32,7 +32,6 @@ class Exchange:
                 context
             and does whatever we need to get that info back to order sender                             
         '''
-        log.debug('Initializing exchange')
         self.order_store = OrderStore()
         self.order_book = order_book
         self.order_reply = order_reply
@@ -40,9 +39,7 @@ class Exchange:
         self.next_match_number = 0
         self.loop = loop
         self.outgoing_messages = deque()
-        self.order_ref_numbers = itertools.count(1, 2)  # odds
-        self.order_book_logger = order_book_logger
-        self.start_time = 0 #jason       
+        self.order_ref_numbers = itertools.count(1, 2)  # odds    
         self.outgoing_broadcast_messages = deque()  # ali
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
@@ -52,7 +49,6 @@ class Exchange:
             OuchClientMessages.ModifyOrder: None}
 
     def system_start_atomic(self, system_event_message, timestamp):  
-        log.debug('received reset signal at %s.' % timestamp)
         self.order_store.clear_order_store()
         self.order_book.reset_book()
         m = OuchServerMessages.SystemEvent(event_code=b'S', timestamp=timestamp)
@@ -318,8 +314,6 @@ class Exchange:
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
             await self.send_outgoing_broadcast_messages()
-            if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
         else:
             log.error("Unknown message type %s", message.message_type)
             return False

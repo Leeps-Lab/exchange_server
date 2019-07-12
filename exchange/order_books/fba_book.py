@@ -1,8 +1,9 @@
-from exchange.order_books.book_price_q import BookPriceQ
+from exchange.order_books.fba_book_price_q import FBABookPriceQ
 from exchange.order_books.list_elements import SortedIndexedDefaultList
 import heapq
 import math
 import logging as log
+from itertools import count
 
 MIN_BID = 0
 MAX_ASK = 2147483647
@@ -52,10 +53,11 @@ def merge(ait, bit, key):
 class FBABook:
     def __init__(self):
         self.bids = SortedIndexedDefaultList(index_func = lambda bq: bq.price, 
-                            initializer = lambda p: BookPriceQ(p),
+                            initializer = lambda p: FBABookPriceQ(p),
                             index_multiplier = -1)
         self.asks = SortedIndexedDefaultList(index_func = lambda bq: bq.price, 
-                            initializer = lambda p: BookPriceQ(p))
+                            initializer = lambda p: FBABookPriceQ(p))
+        self.batch_number = count(1, 1)
 
     def __str__(self):
         return """
@@ -66,14 +68,20 @@ class FBABook:
 {}""".format(self.bids, self.asks)
 
     def reset_book(self):						#jason
-        log.info('Clearing All Entries from Order Book')
-        self.bid = MIN_BID
-        self.ask = MAX_ASK
-        for id in list(self.asks.index):		#force as list because can't interate dict and delete keys at same time
-                    self.asks.remove(id)
-        for id in list(self.bids.index):
-                    self.bids.remove(id)
+        self.__init__()     # I can't see anything wrong with this
+        # log.info('Clearing All Entries from Order Book')
+        # self.bid = MIN_BID
+        # self.ask = MAX_ASK
+        # for id in list(self.asks.index):		#force as list because can't interate dict and delete keys at same time
+        #             self.asks.remove(id)
+        # for id in list(self.bids.index):
+        #             self.bids.remove(id)
 
+    @property
+    def bbo(self):
+        best_bid = self.bids.start.data.price if self.bids.start else MIN_BID
+        best_ask = self.asks.start.data.price if self.asks.start else MAX_ASK
+        return best_bid, best_ask
 
 
     def cancel_order(self, id, price, volume, buy_sell_indicator):
@@ -85,12 +93,12 @@ class FBABook:
         
         if price not in orders or id not in orders[price].order_q:
             log.debug('No order in the book to cancel, cancel ignored.')
-            return []
+            return [], None
         else:
-            amount_canceled=0
-            current_volume=orders[price].order_q[id]
-            if volume==0:                                       #fully cancel
-                orders[price].cancel_order(id)
+            amount_canceled = 0
+            current_volume, _ = orders[price].order_q[id]
+            if volume == 0:
+                orders[price].cancel_order(id, self.batch_number)
                 amount_canceled = current_volume
                 if orders[price].interest == 0:
                     orders.remove(price)
@@ -100,29 +108,29 @@ class FBABook:
             else:
                 amount_canceled = 0
 
-            return [(id, amount_canceled)]
+            return [(id, amount_canceled)], None
 
     def enter_buy(self, id, price, volume, enter_into_book = True):
         '''
         Enter a limit order to buy at price price: do NOT try and match
         '''
         if enter_into_book:
-            self.bids[price].add_order(id, volume)
+            self.bids[price].add_order(id, volume, self.batch_number)
             entered_order = (id, price, volume)
-            return ([], entered_order)
+            return ([], entered_order, None)
         else:
-            return ([], None)
+            return ([], None, None)
 
     def enter_sell(self, id, price, volume, enter_into_book):
         '''
         Enter a limit order to sell at price price: do NOT try and match
         '''
         if enter_into_book:
-            self.asks[price].add_order(id, volume)
+            self.asks[price].add_order(id, volume, self.batch_number)
             entered_order = (id, price, volume)
-            return ([], entered_order) 
+            return ([], entered_order, None) 
         else:
-            return ([], None)
+            return ([], None, None)
 
     def batch_process(self):
         log.debug('Running batch auction..')
@@ -139,7 +147,6 @@ class FBABook:
             [(p.price, p.interest) for p in self.bids.ascending_items()],
             [(p.price, p.interest) for p in self.bids.descending_items()])
         assert len([p.price for p in self.asks.descending_items()])==len([p.price for p in self.asks.ascending_items()]) 
-        
         orders_volume = prior_orders_volume = 0
         clearing_price=None
         log.debug('calculating clearing price..')
@@ -219,7 +226,7 @@ class FBABook:
                         log.debug('no cross at {}'.format(ask_price))
                         break
                     else:
-                        for (bid_id, volume) in list(bid_node.order_q.items()):
+                        for (bid_id, (volume, _)) in list(bid_node.order_q.items()):
                             volume_filled = 0
                             log.debug('      process bid {} with volume {}.'.format(bid_id, volume))
                             while volume_filled < volume and ask_price <= clearing_price:
@@ -252,7 +259,8 @@ class FBABook:
             except StopIteration as e:
                 log.debug(e)
                 pass
-        return matches
+        next(self.batch_number)
+        return matches, clearing_price or 0
 
 
 
