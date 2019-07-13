@@ -57,7 +57,8 @@ class FBABook:
                             index_multiplier = -1)
         self.asks = SortedIndexedDefaultList(index_func = lambda bq: bq.price, 
                             initializer = lambda p: FBABookPriceQ(p))
-        self.batch_number = count(1, 1)
+        self.batch_counter = count(1, 1)
+        self.batch_number = 1
 
     def __str__(self):
         return """
@@ -69,7 +70,7 @@ class FBABook:
 
     def reset_book(self):						#jason
         self.__init__()     # I can't see anything wrong with this
-        # log.info('Clearing All Entries from Order Book')
+        # log.debug('Clearing All Entries from Order Book')
         # self.bid = MIN_BID
         # self.ask = MAX_ASK
         # for id in list(self.asks.index):		#force as list because can't interate dict and delete keys at same time
@@ -81,7 +82,15 @@ class FBABook:
     def bbo(self):
         best_bid = self.bids.start.data.price if self.bids.start else MIN_BID
         best_ask = self.asks.start.data.price if self.asks.start else MAX_ASK
-        return best_bid, best_ask
+        try:
+            next_bid = self.bids.start.next.data.price
+        except AttributeError:
+            next_bid = MIN_BID
+        try:
+            next_ask = self.asks.start.next.data.price
+        except AttributeError:
+            next_ask = MAX_ASK
+        return best_bid, best_ask, next_bid, next_ask
 
 
     def cancel_order(self, id, price, volume, buy_sell_indicator):
@@ -98,7 +107,8 @@ class FBABook:
             amount_canceled = 0
             current_volume, _ = orders[price].order_q[id]
             if volume == 0:
-                orders[price].cancel_order(id, self.batch_number)
+                current_batch_number = self.batch_number
+                orders[price].cancel_order(id, current_batch_number)
                 amount_canceled = current_volume
                 if orders[price].interest == 0:
                     orders.remove(price)
@@ -115,7 +125,8 @@ class FBABook:
         Enter a limit order to buy at price price: do NOT try and match
         '''
         if enter_into_book:
-            self.bids[price].add_order(id, volume, self.batch_number)
+            current_batch_number = self.batch_number
+            self.bids[price].add_order(id, volume, current_batch_number)
             entered_order = (id, price, volume)
             return ([], entered_order, None)
         else:
@@ -126,7 +137,8 @@ class FBABook:
         Enter a limit order to sell at price price: do NOT try and match
         '''
         if enter_into_book:
-            self.asks[price].add_order(id, volume, self.batch_number)
+            current_batch_number = self.batch_number
+            self.asks[price].add_order(id, volume, current_batch_number)
             entered_order = (id, price, volume)
             return ([], entered_order, None) 
         else:
@@ -221,7 +233,7 @@ class FBABook:
                 for bid_node in self.bids.ascending_items():
                     log.debug('   check bid node:{}'.format(bid_node))
                     bid_price = bid_node.price
-                    log.info('bid price {}, ask price {}, clearing price {}'.format(bid_price, ask_price, clearing_price))
+                    log.debug('bid price {}, ask price {}, clearing price {}'.format(bid_price, ask_price, clearing_price))
                     if bid_price<clearing_price or ask_price>clearing_price:
                         log.debug('no cross at {}'.format(ask_price))
                         break
@@ -232,13 +244,13 @@ class FBABook:
                             while volume_filled < volume and ask_price <= clearing_price:
                                 (filled, fulfilling_orders) = ask_node.fill_order(volume-volume_filled)
                                 volume_filled += filled
-                                matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, volume) in fulfilling_orders])
+                                matches.extend([((bid_id, ask_id), clearing_price, volume) for (ask_id, (volume, _)) in fulfilling_orders])
                                 log.debug('      all matching orders at node {}'.format(matches))
                                 if ask_node.interest == 0:
                                     log.debug('   no more interest at ask node, removing...')
                                     self.asks.remove(ask_price) 
                                 if volume_filled < volume:
-                                    log.info('      bid is filled only partially {}/{}.'.format(volume_filled, volume))
+                                    log.debug('      bid is filled only partially {}/{}.'.format(volume_filled, volume))
                                     try: 
                                         ask_node = next(ask_it)
                                         ask_price = ask_node.price
@@ -249,17 +261,17 @@ class FBABook:
                             assert volume_filled<=volume
                             if volume_filled==volume:
                                 log.debug('      bid {} is filled completely {}/{}.'.format(bid_id, volume_filled, volume))
-                                bid_node.cancel_order(bid_id)
+                                current_batch_number = self.batch_number
+                                bid_node.cancel_order(bid_id, current_batch_number)
                                 if bid_node.interest == 0:
                                     log.debug('    no more interest at bid node, removing...')
                                     self.bids.remove(bid_node.price)
                             elif volume_filled >0:
                                 log.debug('     reducing {} out of {}, bid id: {}'.format(volume_filled, volume, bid_id))
                                 bid_node.reduce_order(bid_id, volume - volume_filled)
-            except StopIteration as e:
-                log.debug(e)
+            except StopIteration:
                 pass
-        next(self.batch_number)
+        self.batch_number = next(self.batch_counter)
         return matches, clearing_price or 0
 
 

@@ -9,7 +9,7 @@ class FBABookPriceQ(BookPriceQ):
         super().__init__(*args, **kwargs)
         self.current_batch_number = 0
         self.batch_marker = 0
-
+    
     def add_order(self, order_id, volume, order_batch_number):
         self.interest += volume
         self.order_q[order_id] = (volume, order_batch_number)
@@ -20,14 +20,11 @@ class FBABookPriceQ(BookPriceQ):
             rest_of_batch = list(self.order_q.keys())[random_index : -1]
             if rest_of_batch:
                 for o in rest_of_batch:
-                    print('moving ', o)
                     self.order_q.move_to_end(o)
-            print('AMQ {0}:{1}:{2}:{3}:{4}:{5}'.format(order_id, batch_start_index, batch_end_index, random_index, rest_of_batch, self.order_q))
         else:
             self.order_q[order_id] = (volume, order_batch_number)
             self.batch_marker = len(self.order_q) - 1
             self.current_batch_number = order_batch_number
-        print(self.order_q)
         
     def cancel_order(self, order_id, live_batch_number):
         volume, order_batch_number = self.order_q[order_id]
@@ -35,7 +32,6 @@ class FBABookPriceQ(BookPriceQ):
         del self.order_q[order_id]
         if order_batch_number != live_batch_number:
             self.batch_marker -= 1      
-        print(self.order_q, self.batch_marker)
     
     def reduce_order(self, order_id, new_volume):
         volume, _ = self.order_q[order_id]
@@ -44,12 +40,6 @@ class FBABookPriceQ(BookPriceQ):
         self.interest -= (volume - new_volume)
 
     def fill_order(self, volume):
-        '''
-        For a given order volume to fill, dequeue's the oldest orders 
-        at this price point to be used to fill the order. 
-
-        Returns a tuple giving the volume filled at this price, and a list of (order_id, order_volume) pairs giving the order volume amount filled from each order in the book.
-        '''
         volume_to_fill = volume
         fulfilling_orders = []
         while volume_to_fill > 0 and len(self.order_q)>0:

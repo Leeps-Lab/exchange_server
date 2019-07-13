@@ -103,7 +103,8 @@ class Exchange:
     def best_quote_update(self, order_message, new_bbo, timestamp):
         m = OuchServerMessages.BestBidAndOffer(timestamp=timestamp, stock=b'AMAZGOOG',
             best_bid=new_bbo.best_bid, volume_at_best_bid=new_bbo.volume_at_best_bid,
-            best_ask=new_bbo.best_ask, volume_at_best_ask=new_bbo.volume_at_best_ask 
+            best_ask=new_bbo.best_ask, volume_at_best_ask=new_bbo.volume_at_best_ask,
+            next_bid=new_bbo.next_bid, next_ask=new_bbo.next_ask 
         )
         m.meta = order_message.meta
         return m
@@ -112,7 +113,7 @@ class Exchange:
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
         order_message = self.order_store.orders[id].first_message
         fulfilling_order_message = self.order_store.orders[fulfilling_order_id].first_message
-        log.debug('%s,%s',order_message,fulfilling_order_message)
+        log.debug('incoming order message: %s, fullfilling order message: %s',order_message,fulfilling_order_message)
         match_number = self.next_match_number
         self.next_match_number += 1
         r1 = OuchServerMessages.Executed(
@@ -185,6 +186,7 @@ class Exchange:
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
+            log.debug("Resulting book: %s", self.order_book)
             if new_bbo:
                 bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
                 self.outgoing_broadcast_messages.append(bbo_message)

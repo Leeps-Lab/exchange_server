@@ -41,6 +41,8 @@ class OuchFields(ProtocolFieldEnum):
     best_ask = ('I', 'the best ask')
     volume_at_best_bid = ('I', 'todo')
     volume_at_best_ask = ('I', 'todo')
+    next_bid = ('I', 'todo')
+    next_ask = ('I', 'todo')
     # fields for fb auction post batch msg
     clearing_price = ('I', 'todo')
     transacted_volume = ('I', 'todo')
@@ -158,13 +160,13 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
     BestBidAndOffer = ('{timestamp}:{stock}:bid:{volume_at_best_bid}@{best_bid}:ask:{volume_at_best_ask}@{best_ask}',
             {'msg_type': b'Q'},
             ['timestamp', 'stock', 'best_bid', 'volume_at_best_bid', 'best_ask', 
-             'volume_at_best_ask']
+             'volume_at_best_ask', 'next_bid', 'next_ask']
         )
 
     PostBatch = ('{timestamp}:{stock}:{clearing_price}:{best_bid}:{best_ask}:{transacted_volume}',
             {'msg_type': b'Z'},
             ['timestamp', 'stock', 'clearing_price', 'transacted_volume',
-             'best_bid', 'best_ask']
+             'best_bid', 'best_ask', 'next_bid', 'next_ask']
         )
     
     BrokenTrade = ('{timestamp}:XX{order_token}m{match_number}({reason})',
