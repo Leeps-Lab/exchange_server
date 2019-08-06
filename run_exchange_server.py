@@ -19,7 +19,7 @@ p.add('--logfile', default=None, type=str)
 p.add('--inputlogfile', default=None, type=str)
 p.add('--outputlogfile', default=None, type=str)
 p.add('--mechanism', choices=['cda', 'fba'], default = 'cda')
-p.add('--interval', default = None, type=float, help="(FBA) Interval between batch auctions in seconds")
+p.add('--interval', default = 10, type=float, help="(FBA) Interval between batch auctions in seconds")
 options, args = p.parse_known_args()
 
 
