@@ -163,10 +163,12 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
              'volume_at_best_ask', 'next_bid', 'next_ask']
         )
 
-    PostBatch = ('{timestamp}:{stock}:{clearing_price}:{best_bid}:{best_ask}:{transacted_volume}',
+    PostBatch = ('{timestamp}:{stock}:{clearing_price}:{transacted_volume}:\
+{best_bid}:{volume_at_best_bid}:{best_ask}:{volume_at_best_ask}:{next_bid}:{next_ask}',
             {'msg_type': b'Z'},
             ['timestamp', 'stock', 'clearing_price', 'transacted_volume',
-             'best_bid', 'best_ask', 'next_bid', 'next_ask']
+             'best_bid', 'volume_at_best_bid', 'volume_at_best_ask', 'best_ask', 
+             'next_bid', 'next_ask']
         )
     
     BrokenTrade = ('{timestamp}:XX{order_token}m{match_number}({reason})',

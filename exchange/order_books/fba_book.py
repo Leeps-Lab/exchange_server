@@ -86,11 +86,17 @@ class FBABook:
             next_bid = self.bids.start.next.data.price
         except AttributeError:
             next_bid = MIN_BID
+            volume_at_best_bid = 0
+        else:
+            volume_at_best_bid = self.bids.start.next.data.interest
         try:
             next_ask = self.asks.start.next.data.price
         except AttributeError:
             next_ask = MAX_ASK
-        return best_bid, best_ask, next_bid, next_ask
+            volume_at_best_ask = 0
+        else:
+            volume_at_best_ask = self.asks.start.next.data.interest
+        return best_bid, best_ask, next_bid, next_ask, volume_at_best_bid, volume_at_best_ask
 
 
     def cancel_order(self, id, price, volume, buy_sell_indicator):

@@ -23,7 +23,7 @@ class FBAExchange(Exchange):
                                 price, volume, 
                                 timestamp=timestamp)]
         self.outgoing_messages.extend(cross_messages)
-        best_bid, best_ask, next_bid, next_ask = self.order_book.bbo
+        best_bid, best_ask, next_bid, next_ask, v_bb, v_bo = self.order_book.bbo
         self.outgoing_broadcast_messages.append(
             OuchServerMessages.PostBatch(
                     timestamp=nanoseconds_since_midnight(),
@@ -33,8 +33,9 @@ class FBAExchange(Exchange):
                     best_bid=best_bid,
                     best_ask=best_ask,
                     next_bid=next_bid,
-                    next_ask=next_ask)
-            )
+                    next_ask=next_ask,
+                    volume_at_best_bid=v_bb,
+                    volume_at_best_ask=v_bo))
 
     async def run_batch_repeating(self):
         while True:
