@@ -4,6 +4,7 @@ from exchange.exchange import Exchange
 from OuchServer.ouch_server import nanoseconds_since_midnight
 from OuchServer.ouch_messages import OuchServerMessages
 
+
 class FBAExchange(Exchange):
     def __init__(self, interval, *args, **kwargs):
         self.interval = interval
@@ -14,7 +15,7 @@ class FBAExchange(Exchange):
 
     def run_batch_atomic(self):
         timestamp = nanoseconds_since_midnight()
-        crossed_orders = self.order_book.batch_process()
+        crossed_orders, clearing_price = self.order_book.batch_process()
         cross_messages = [m for ((id, fulfilling_order_id), price, volume) 
                                             in crossed_orders 
                             for m in self.process_cross(
@@ -22,21 +23,23 @@ class FBAExchange(Exchange):
                                 price, volume, 
                                 timestamp=timestamp)]
         self.outgoing_messages.extend(cross_messages)
+        best_bid, best_ask, next_bid, next_ask, v_bb, v_bo = self.order_book.bbo
+        self.outgoing_broadcast_messages.append(
+            OuchServerMessages.PostBatch(
+                    timestamp=nanoseconds_since_midnight(),
+                    stock=b'AMAZGOOG',
+                    clearing_price=clearing_price,
+                    transacted_volume=len(crossed_orders),
+                    best_bid=best_bid,
+                    best_ask=best_ask,
+                    next_bid=next_bid,
+                    next_ask=next_ask,
+                    volume_at_best_bid=v_bb,
+                    volume_at_best_ask=v_bo))
 
     async def run_batch_repeating(self):
         while True:
-            log.debug('Starting batch at %s', self.loop.time())
-            timestamp = nanoseconds_since_midnight()
-            await self.message_broadcast(
-                OuchServerMessages.SystemEvent(
-                    event_code=b'B',
-                    timestamp=timestamp))
             self.run_batch_atomic()
-            await self.message_broadcast(
-                OuchServerMessages.SystemEvent(
-                    event_code=b'P',
-                    timestamp=nanoseconds_since_midnight()))
             await self.send_outgoing_messages()
-            self.order_book_logger.log_book(self.order_book, timestamp, self.order_store)
-            log.debug('Ended batch at %s', self.loop.time())
+            await self.send_outgoing_broadcast_messages()
             await asyncio.sleep(self.interval - (self.loop.time() % self.interval))

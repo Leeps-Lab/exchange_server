@@ -36,6 +36,16 @@ class OuchFields(ProtocolFieldEnum):
     reference_price = ('I', 'todo')
     reference_price_type = ('c', 'todo')
     leeps_timestamp = ('16s', 'todo')
+    # custom quotation message fields
+    best_bid = ('I', 'the best bid')
+    best_ask = ('I', 'the best ask')
+    volume_at_best_bid = ('I', 'todo')
+    volume_at_best_ask = ('I', 'todo')
+    next_bid = ('I', 'todo')
+    next_ask = ('I', 'todo')
+    # fields for fb auction post batch msg
+    clearing_price = ('I', 'todo')
+    transacted_volume = ('I', 'todo')
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -100,10 +110,11 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             {'msg_type': b'N'},
             ['order_token']
         )
-    SystemEvent = ('{leeps_timestamp}:{event_code}',          #jason
-            {'msg_type': b'S'},
-            ['leeps_timestamp', 'event_code']
+    SystemStart = ('{timestamp}:{event_code}',          #jason
+            {'msg_type': b'H'},
+            ['timestamp', 'event_code']
         )
+
 
 LookupByHeaderBytesMixin = create_attr_lookup_mixin(
     'LookupByHeaderBytesMixin_ServerMsgs', 'header_bytes')
@@ -145,6 +156,21 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['timestamp', 'order_token', 'executed_shares',
              'execution_price', 'liquidity_flag', 'match_number']
         )
+
+    BestBidAndOffer = ('{timestamp}:{stock}:bid:{volume_at_best_bid}@{best_bid}:ask:{volume_at_best_ask}@{best_ask}',
+            {'msg_type': b'Q'},
+            ['timestamp', 'stock', 'best_bid', 'volume_at_best_bid', 'best_ask', 
+             'volume_at_best_ask', 'next_bid', 'next_ask']
+        )
+
+    PostBatch = ('{timestamp}:{stock}:{clearing_price}:{transacted_volume}:\
+{best_bid}:{volume_at_best_bid}:{best_ask}:{volume_at_best_ask}:{next_bid}:{next_ask}',
+            {'msg_type': b'Z'},
+            ['timestamp', 'stock', 'clearing_price', 'transacted_volume',
+             'best_bid', 'volume_at_best_bid', 'volume_at_best_ask', 'best_ask', 
+             'next_bid', 'next_ask']
+        )
+    
     BrokenTrade = ('{timestamp}:XX{order_token}m{match_number}({reason})',
             {'msg_type': b'B'},
             ['timestamp', 'order_token', 'match_number', 'reason']

@@ -8,7 +8,6 @@ import asyncio.streams
 import configargparse
 import logging as log
 import itertools
-import math
 from collections import namedtuple
 from functools import partial
 import datetime
@@ -16,7 +15,7 @@ import pytz
 
 from .ouch_messages import OuchClientMessages, OuchServerMessages
 
-DEFAULT_TIMEZONE = pytz.timezone('America/Los_Angeles')
+DEFAULT_TIMEZONE = pytz.timezone('US/Pacific')
 
 p = configargparse.ArgParser()
 p.add('--port', default=12345)
@@ -89,13 +88,15 @@ class ProtocolMessageServer(object):
                 break
 
             client_msg = message_type.from_bytes(payload_bytes, header=False)
-            print("Message recieved from client: %s" %client_msg)
             client_msg.meta = client_token
             await self.broadcast_to_listeners(client_msg)
             
     async def send_server_response(self, server_msg):
         client_token = server_msg.meta
-        client_writer = self.clients[client_token].writer
+        try:
+            client_writer = self.clients[client_token].writer
+        except KeyError:
+            return
         client_writer.write(bytes(server_msg))
         await client_writer.drain()
 
@@ -154,15 +155,6 @@ def nanoseconds_since_midnight(tz=DEFAULT_TIMEZONE):
     timestamp += now.microsecond
     timestamp *= 10**3  # microseconds -> nanoseconds
     return timestamp
-
-def printTime(nanoseconds):#jason
-    out = ""
-    millis  = str(math.floor((nanoseconds / 1000000) % 1000))
-    seconds = str(math.floor((nanoseconds / 1000000000) % 60))
-    minutes = str(math.floor(nanoseconds / (60*1000000000) % 60))
-    hours   = str(math.floor(nanoseconds / (60*60*1000000000) % 24))
-    out = "[" + hours + ":" + minutes + ":" + seconds + ":" + millis + "]"
-    return out
 
 order_ref_numbers = itertools.count(1, 2)  # odds
 async def message_acker(callback, message):

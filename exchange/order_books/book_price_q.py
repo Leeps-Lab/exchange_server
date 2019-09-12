@@ -1,7 +1,5 @@
 import logging as log
 from collections import OrderedDict
-import pdb
-
 
 
 class BookPriceQ:
@@ -11,7 +9,10 @@ class BookPriceQ:
 		self.price = price
 	
 	def __str__(self):
-		return '${} Interest: {}, Orders: {}'.format(self.price, self.interest, ', '.join(['{}: {}'.format(id, volume) for (id, volume) in self.order_q.items()]))
+		return '${} Interest: {}, Orders: {}'.format(
+			self.price, self.interest, ', '.join(
+					['{}: {}'.format(id, volume) for (id, volume) 
+					 in self.order_q.items()]))
 
 	def add_order(self, order_id, volume):
 		self.interest += volume
@@ -23,7 +24,7 @@ class BookPriceQ:
 
 	def reduce_order(self, order_id, new_volume):
 		volume = self.order_q[order_id]
-		assert new_volume < volume
+		assert new_volume <= volume
 		self.order_q[order_id] = new_volume
 		self.interest -= (volume - new_volume)
 
@@ -37,7 +38,6 @@ class BookPriceQ:
 		volume_to_fill = volume
 		fulfilling_orders = []
 		while volume_to_fill > 0 and len(self.order_q)>0:
-			log.debug('  fill_order: volume_to_fill = %s', volume_to_fill)
 			next_order_id = next(iter(self.order_q))
 			next_order_volume = self.order_q[next_order_id]
 			if next_order_volume > volume_to_fill:
@@ -49,6 +49,7 @@ class BookPriceQ:
 			else:
 				volume_to_fill -= next_order_volume
 				fulfilling_orders.append(self.order_q.popitem(last=False))
+				log.info(self.order_q.values())
 				self.interest -= next_order_volume
 		return (volume - volume_to_fill, fulfilling_orders)
 

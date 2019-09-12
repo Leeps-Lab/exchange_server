@@ -9,7 +9,7 @@ from collections import deque
 
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 from OuchServer.ouch_server import nanoseconds_since_midnight
-from OuchServer.ouch_server import printTime 
+
 from exchange.order_store import OrderStore
 
 ###
@@ -23,7 +23,7 @@ from exchange.order_store import OrderStore
 
 
 class Exchange:
-    def __init__(self, order_book, order_reply, loop, order_book_logger = None, message_broadcast = None):
+    def __init__(self, order_book, order_reply, loop, message_broadcast = None):
         '''
         order_book - the book!
         order_reply - post office reply function, takes in 
@@ -32,7 +32,6 @@ class Exchange:
                 context
             and does whatever we need to get that info back to order sender                             
         '''
-        log.debug('Initializing exchange')
         self.order_store = OrderStore()
         self.order_book = order_book
         self.order_reply = order_reply
@@ -40,39 +39,24 @@ class Exchange:
         self.next_match_number = 0
         self.loop = loop
         self.outgoing_messages = deque()
-        self.order_ref_numbers = itertools.count(1, 2)  # odds
-        self.order_book_logger = order_book_logger
-        self.start_time = 0 #jason
-
+        self.order_ref_numbers = itertools.count(1, 2)  # odds    
+        self.outgoing_broadcast_messages = deque()  # ali
         self.handlers = { 
             OuchClientMessages.EnterOrder: self.enter_order_atomic,
             OuchClientMessages.ReplaceOrder: self.replace_order_atomic,
             OuchClientMessages.CancelOrder: self.cancel_order_atomic,
-            OuchClientMessages.SystemEvent: self.system_event_atomic,  #jason
+            OuchClientMessages.SystemStart: self.system_start_atomic,
             OuchClientMessages.ModifyOrder: None}
 
-    def system_event_atomic(self, system_event_message, timestamp):      #jason
-        if system_event_message['event_code'] == b'E':
-            log.info("End of Day")
-            self.loop.stop()
-            #self.loop.close()
-        else:
-            self.order_store.clear_order_store()
-            self.order_book.reset_book()
-            
-            #self.start_time = nanoseconds_since_midnight()
-            #log.info(printTime(self.start_time))
-            leeps_time = system_event_message['leeps_timestamp']
-            log.info(leeps_time)
-            result = 0
-            for b in leeps_time:
-                result = (result << 4) + int(b)
-            self.start_time = result * 1000000
-            log.info(self.start_time)
-            #self.start_time = nanoseconds_since_midnight()
+    def system_start_atomic(self, system_event_message, timestamp):  
+        self.order_store.clear_order_store()
+        self.order_book.reset_book()
+        m = OuchServerMessages.SystemEvent(event_code=b'S', timestamp=timestamp)
+        m.meta = system_event_message.meta
+        self.outgoing_messages.append(m)
 
     def accepted_from_enter(self, enter_order_message, timestamp, order_reference_number, order_state=b'L', bbo_weight_indicator=b' '):
-        m=OuchServerMessages.Accepted(
+        m = OuchServerMessages.Accepted(
             timestamp=timestamp,
             order_reference_number=order_reference_number, 
             order_state=order_state,
@@ -115,12 +99,21 @@ class Exchange:
                             reason = reason)
         m.meta = cancel_order_message.meta
         return m
+    
+    def best_quote_update(self, order_message, new_bbo, timestamp):
+        m = OuchServerMessages.BestBidAndOffer(timestamp=timestamp, stock=b'AMAZGOOG',
+            best_bid=new_bbo.best_bid, volume_at_best_bid=new_bbo.volume_at_best_bid,
+            best_ask=new_bbo.best_ask, volume_at_best_ask=new_bbo.volume_at_best_ask,
+            next_bid=new_bbo.next_bid, next_ask=new_bbo.next_ask 
+        )
+        m.meta = order_message.meta
+        return m
 
     def process_cross(self, id, fulfilling_order_id, price, volume, timestamp, liquidity_flag = b'?'):
         log.debug('Orders (%s, %s) crossed at price %s, volume %s', id, fulfilling_order_id, price, volume)
         order_message = self.order_store.orders[id].first_message
         fulfilling_order_message = self.order_store.orders[fulfilling_order_id].first_message
-        log.debug('%s,%s',order_message,fulfilling_order_message)
+        log.debug('incoming order message: %s, fullfilling order message: %s',order_message,fulfilling_order_message)
         match_number = self.next_match_number
         self.next_match_number += 1
         r1 = OuchServerMessages.Executed(
@@ -161,7 +154,7 @@ class Exchange:
                 self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
             
             enter_order_func = self.order_book.enter_buy if enter_order_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
-            (crossed_orders, entered_order) = enter_order_func(
+            (crossed_orders, entered_order, new_bbo) = enter_order_func(
                     enter_order_message['order_token'],
                     enter_order_message['price'],
                     enter_order_message['shares'],
@@ -175,20 +168,28 @@ class Exchange:
             cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
                                 for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
             self.outgoing_messages.extend(cross_messages)
+            if new_bbo:
+                bbo_message = self.best_quote_update(enter_order_message, new_bbo, timestamp)
+                self.outgoing_broadcast_messages.append(bbo_message)
 
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
             log.debug('No such order to cancel, ignored')
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
-            cancelled_orders = self.order_book.cancel_order(
+            cancelled_orders, new_bbo = self.order_book.cancel_order(
                 id = cancel_order_message['order_token'],
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
             cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
+
             self.outgoing_messages.extend(cancel_messages) 
+            log.debug("Resulting book: %s", self.order_book)
+            if new_bbo:
+                bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
+                self.outgoing_broadcast_messages.append(bbo_message)
 
       # """
         # NASDAQ may respond to the Replace Order Message in several ways:
@@ -217,7 +218,7 @@ class Exchange:
         else:
             store_entry = self.order_store.orders[replace_order_message['existing_order_token']]
             log.debug('store_entry: %s', store_entry)
-            cancelled_orders = self.order_book.cancel_order(
+            cancelled_orders, new_bbo_post_cancel = self.order_book.cancel_order(
                 id = replace_order_message['existing_order_token'],
                 price = store_entry.first_message['price'],
                 volume = 0,
@@ -247,7 +248,7 @@ class Exchange:
                         self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
                     
                     enter_order_func = self.order_book.enter_buy if original_enter_message['buy_sell_indicator'] == b'B' else self.order_book.enter_sell
-                    (crossed_orders, entered_order) = enter_order_func(
+                    crossed_orders, entered_order, new_bbo_post_enter = enter_order_func(
                             replace_order_message['replacement_order_token'],
                             replace_order_message['price'],
                             liable_shares,
@@ -284,6 +285,23 @@ class Exchange:
                                                     timestamp=timestamp)]
                     self.outgoing_messages.extend(cross_messages)
 
+                    bbo_message = None
+                    if new_bbo_post_enter:
+                        bbo_message = self.best_quote_update(replace_order_message, 
+                            new_bbo_post_enter, timestamp)
+                    elif new_bbo_post_cancel:
+                        bbo_message = self.best_quote_update(replace_order_message, 
+                            new_bbo_post_cancel, timestamp)
+                    if bbo_message:
+                        self.outgoing_broadcast_messages.append(bbo_message)
+
+    async def send_outgoing_broadcast_messages(self):
+        while len(self.outgoing_broadcast_messages)>0:
+            m = self.outgoing_broadcast_messages.popleft()
+            log.debug('Sending message %s', m)
+            await self.message_broadcast(m)
+            log.debug('Sent message %s', m)    
+
     async def send_outgoing_messages(self):
         while len(self.outgoing_messages)>0:
             m = self.outgoing_messages.popleft()
@@ -297,8 +315,7 @@ class Exchange:
             timestamp = nanoseconds_since_midnight()
             self.handlers[message.message_type](message, timestamp)
             await self.send_outgoing_messages()
-            if self.order_book_logger is not None:
-                self.order_book_logger.log_book_order(self.order_book, message, timestamp - self.start_time, self.order_store)
+            await self.send_outgoing_broadcast_messages()
         else:
             log.error("Unknown message type %s", message.message_type)
             return False
