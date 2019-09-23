@@ -46,6 +46,8 @@ class OuchFields(ProtocolFieldEnum):
     # fields for fb auction post batch msg
     clearing_price = ('I', 'todo')
     transacted_volume = ('I', 'todo')
+    e_best_bid = ('I', 'todo')
+    e_best_offer = ('I', 'todo')
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -113,6 +115,10 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
     SystemStart = ('{timestamp}:{event_code}',          #jason
             {'msg_type': b'H'},
             ['timestamp', 'event_code']
+        )
+    ExternalFeedChange = ('{e_best_bid}:{e_best_offer}',
+            {'msg_type': b'K'},
+            ['e_best_bid', 'e_best_offer']
         )
 
 

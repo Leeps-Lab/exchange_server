@@ -7,8 +7,10 @@ from OuchServer.ouch_server import ProtocolMessageServer
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
 from exchange.order_books.cda_book import CDABook
 from exchange.order_books.fba_book import FBABook
+from exchange.order_books.iex_book import IEXBook
 from exchange.exchange import Exchange
 from exchange.fba_exchange import FBAExchange
+from exchange.iex_exchange import IEXExchange
 from exchange.order_books.book_logging import BookLogger
 
 p = configargparse.getArgParser()
@@ -18,8 +20,10 @@ p.add('--debug', action='store_true')
 p.add('--logfile', default=None, type=str)
 p.add('--inputlogfile', default=None, type=str)
 p.add('--outputlogfile', default=None, type=str)
-p.add('--mechanism', choices=['cda', 'fba'], default = 'cda')
-p.add('--interval', default = 10, type=float, help="(FBA) Interval between batch auctions in seconds")
+p.add('--book_log', default=None)
+p.add('--mechanism', choices=['cda', 'fba', 'iex'], default = 'cda')
+p.add('--interval', default = None, type=float, help="(FBA) Interval between batch auctions in seconds")
+p.add('--delay', default = None, type=float, help="(IEX) 'speed bump' time that orders are delayed before being entered")
 options, args = p.parse_known_args()
 
 
@@ -49,6 +53,12 @@ def main():
                             loop = loop, 
                             interval = options.interval)
         exchange.start()
+    elif options.mechanism == 'iex':
+        book = IEXBook()
+        exchange = IEXExchange(order_book = book,
+                            order_reply = server.send_server_response,
+                            loop = loop,
+                            delay = options.delay)
     
     server.register_listener(exchange.process_message)
     server.start(loop)

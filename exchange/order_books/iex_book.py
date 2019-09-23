@@ -2,8 +2,8 @@
 import sys
 from collections import OrderedDict
 import logging as log
-from book_price_q import IEXBookPriceQ
-from list_elements import IEXAskList, IEXBidList
+from .book_price_q import IEXBookPriceQ
+from .list_elements import IEXAskList, IEXBidList
 import itertools
 
 MIN_BID = 0
@@ -163,7 +163,7 @@ class IEXBook:
                 self.mpegs[id] = price
         return (order_crosses, entered_order) 
 
-    def enter_sell(self, id, price, volume, lit, enter_into_book, midpoint_peg=False):
+    def enter_sell(self, id, price, volume, lit, enter_into_book, midpoint_peg=True):
         '''
         Enter a limit order to sell at price price: first try and fulfill as much as possible, then enter the
         remaining as a limit sell

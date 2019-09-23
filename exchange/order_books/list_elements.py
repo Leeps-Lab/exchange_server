@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import logging as log
-from book_price_q import BookPriceQ, IEXBookPriceQ
+from .book_price_q import BookPriceQ, IEXBookPriceQ
 
 
 class Node:
