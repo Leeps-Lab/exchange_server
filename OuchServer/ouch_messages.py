@@ -48,6 +48,7 @@ class OuchFields(ProtocolFieldEnum):
     transacted_volume = ('I', 'todo')
     e_best_bid = ('I', 'todo')
     e_best_offer = ('I', 'todo')
+    midpoint_peg = ('?', 'todo')
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -92,7 +93,7 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'customer_type']
+             'cross_type', 'customer_type', 'midpoint_peg']
         )
     ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}',
             {'msg_type': b'U'},

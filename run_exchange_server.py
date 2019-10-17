@@ -31,7 +31,7 @@ def main():
     if not options.debug:
         sys.tracebacklimit = 0
 
-    log.basicConfig(level= log.DEBUG if options.debug else log.INFO,
+    log.basicConfig(level=log.ERROR if options.debug else log.INFO,
         format = "[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
         datefmt = '%H:%M:%S',
         filename = options.logfile)
@@ -57,6 +57,7 @@ def main():
         book = IEXBook()
         exchange = IEXExchange(order_book = book,
                             order_reply = server.send_server_response,
+                            message_broadcast = server.broadcast_server_message,
                             loop = loop,
                             delay = options.delay)
     
