@@ -80,21 +80,20 @@ class IEXExchange(Exchange):
                 bbo_message = self.best_quote_update(enter_order_message, new_bbo, timestamp)
                 self.outgoing_broadcast_messages.append(bbo_message)
 
-    # HACK: assume canceled and replaced orders are always lit. this isn't really correct, but it works for the experiment since
-    # only investors' orders are ever pegged and they never send replaces
-
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
             log.debug('No such order to cancel, ignored')
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
+            original_enter_message = store_entry.original_enter_message
+            order_is_lit = not original_enter_message['midpoint_peg']
             cancelled_orders, new_bbo = self.order_book.cancel_order(
                 id = cancel_order_message['order_token'],
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
-                buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'],
-                lit=True,
-                midpoint_peg=False)
+                buy_sell_indicator = original_enter_message['buy_sell_indicator'],
+                lit=order_is_lit,
+                midpoint_peg=original_enter_message['midpoint_peg'])
             cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
 
@@ -104,6 +103,9 @@ class IEXExchange(Exchange):
                 bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
                 self.outgoing_broadcast_messages.append(bbo_message)
 
+    # replace for iex is a little weird, right now it maintains the litness of any replaced order.
+    # it doesn't really make sense to replace a pegged order at all for our implementation, so this should work fine.
+    # however, if different peg points are added later this may need to be rethought
     def replace_order_atomic(self, replace_order_message, timestamp):
         if replace_order_message['existing_order_token'] not in self.order_store.orders:
             log.debug('Existing token %s unknown, siliently ignoring', replace_order_message['existing_order_token'])
@@ -113,21 +115,22 @@ class IEXExchange(Exchange):
             return []
         else:
             store_entry = self.order_store.orders[replace_order_message['existing_order_token']]
+            original_enter_message = store_entry.original_enter_message
+            order_is_lit = not original_enter_message['midpoint_peg']
             log.debug('store_entry: %s', store_entry)
             cancelled_orders, new_bbo_post_cancel = self.order_book.cancel_order(
                 id = replace_order_message['existing_order_token'],
                 price = store_entry.first_message['price'],
                 volume = 0,
-                buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'],
-                lit=True,
-                midpoint_peg=False)  # Fully cancel
+                buy_sell_indicator = original_enter_message['buy_sell_indicator'],
+                lit=order_is_lit,
+                midpoint_peg=original_enter_message['midpoint_peg'])  # Fully cancel
             
             if len(cancelled_orders)==0:
                 log.debug('No orders cancelled, siliently ignoring')
                 return []
             else:
                 (id_cancelled, amount_cancelled) = cancelled_orders[0]
-                original_enter_message = store_entry.original_enter_message
                 first_message = store_entry.first_message
                 shares_diff = replace_order_message['shares'] - first_message['shares'] 
                 liable_shares = max(0, amount_cancelled + shares_diff )
@@ -150,10 +153,9 @@ class IEXExchange(Exchange):
                             replace_order_message['replacement_order_token'],
                             replace_order_message['price'],
                             liable_shares,
-                            # this whole function repeated for one different line!!! love it!!!!
-                            True,
+                            order_is_lit,
                             enter_into_book,
-                            midpoint_peg=False)
+                            midpoint_peg=original_enter_message['midpoint_peg'])
                     log.debug("Resulting book: %s", self.order_book)
 
                     r = OuchServerMessages.Replaced(
