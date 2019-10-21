@@ -27,7 +27,7 @@ def main():
     if not options.debug:
         sys.tracebacklimit = 0
 
-    log.basicConfig(level= log.DEBUG if options.debug else log.INFO,
+    log.basicConfig(level= log.CRITICAL,
         format = "[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
         datefmt = '%H:%M:%S',
         filename = options.logfile)
