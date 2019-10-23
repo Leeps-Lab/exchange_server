@@ -1,76 +1,53 @@
-
-import sys
 from collections import OrderedDict
 import logging as log
-from .book_price_q import IEXBookPriceQ
-from .list_elements import IEXAskList, IEXBidList
-import itertools
-from collections import namedtuple
+from .cda_book import CDABook, bbo, MIN_BID, MAX_ASK
 
-MIN_BID = 0
-MAX_ASK = 2147483647
+class IEXBook(CDABook):
 
-bbo = namedtuple('BestQuotes', 'best_bid volume_at_best_bid best_ask volume_at_best_ask next_bid next_ask')
-
-class IEXBook:
     def __init__(self):
-        self.bid = MIN_BID
-        self.ask = MAX_ASK
-        self.bids = IEXBidList()
-        self.asks = IEXAskList()
-        self.bbo = bbo(best_bid=MIN_BID, volume_at_best_bid=0, best_ask=MAX_ASK,
-                    volume_at_best_ask=0, next_bid=MIN_BID, next_ask=MAX_ASK)
-        self.bounds = (MIN_BID, MAX_ASK)
-        self.mpegs = {}
-        self.nbbo_midpoint = 10
+        super().__init__()
+
+        self.peg_price = None
+        # pegged order list entries look like (ORDER_ID, VOLUME)
+        self.pegged_bids = OrderedDict()
+        self.pegged_asks = OrderedDict()
 
     def __str__(self):
-        return """  
-  
-  Spread: {} - {}
-
+        pegged_bids = '\n'.join(
+            'Order ID: {}, Volume: {}'.format(oid, vol) for (oid, vol) in self.pegged_bids.items()
+        )
+        pegged_asks = '\n'.join(
+            'Order ID: {}, Volume: {}'.format(oid, vol) for (oid, vol) in self.pegged_asks.items()
+        )
+        return """Spread: {} - {}
+Peg Price: ${}
   Bids:
 {}
-
   Asks:
 {}
-""".format(self.bid, self.ask, self.bids, self.asks)
+  Pegged Bids:
+{}
+  Pegged Asks:
+{}
+""".format(self.bid, self.ask, self.peg_price, self.bids, self.asks, pegged_bids, pegged_asks)
 
-    def reset_book(self):                        #jason
-        log.info('Clearing All Entries from Order Book')
-        self.bid = MIN_BID
-        self.ask = MAX_ASK
-        for id in list(self.asks.index):        #force as list because can't interate dict and delete keys at same time
-            self.asks.remove(id)
-        for id in list(self.bids.index):
-            self.bids.remove(id)
-
-
-    def calc_limpeg_price(self, price, buy_sell_indicator):
-        """
-        calculates the effective price for
-        limit pegged orders
-        """
-        constant = 1 if buy_sell_indicator == b'B' else -1
-        nbbo = self.nbbo_midpoint
-        effective_price = price if constant * price < constant * nbbo else nbbo
-        return effective_price
-            
-
-    def cancel_from_nbbo(self, id, price, buy_sell_indicator, lit):
-        orders = self.bids if buy_sell_indicator == b'B' else self.asks
-        effective_price = price
-        if price not in self.bounds:
-            # order is a limit midpoint peg
-            effective_price = self.calc_limpeg_price(price, buy_sell_indicator)
-        orders[(effective_price, lit)].cancel_order(id)
-        if orders[(effective_price, lit)].interest == 0:
-            orders.remove((effective_price, lit))
-        if effective_price == self.bid:
-            self.update_bid()
-        elif effective_price == self.ask:
-            self.update_ask()
-        
+    # fill `volume`'s worth of pegged orders
+    # if `fill_bids` is true, bids are filled. else asks are filled
+    def fill_pegged_orders(self, volume, fill_bids):
+        volume_to_fill = volume
+        fulfilling_orders = []
+        order_queue = self.pegged_bids if fill_bids else self.pegged_asks
+        while volume_to_fill > 0 and len(order_queue) > 0:
+            (order_id, order_volume) = next(iter(order_queue.items()))
+            if order_volume > volume_to_fill:
+                order_queue[order_id] = order_volume - volume_to_fill
+                fulfilling_orders.append( (order_id, volume_to_fill) )
+                volume_to_fill = 0
+            else:
+                del order_queue[order_id]
+                fulfilling_orders.append( (order_id, order_volume) )
+                volume_to_fill -= order_volume
+        return fulfilling_orders
 
     def cancel_order(self, id, price, volume, buy_sell_indicator, lit, midpoint_peg):
         '''
@@ -83,7 +60,7 @@ class IEXBook:
             # order is a limit midpoint peg
             effective_price = self.calc_limpeg_price(price, buy_sell_indicator)
         if (effective_price, lit) not in orders or id not in orders[(effective_price, lit)].order_q:
-            print('No order in the book to cancel, cancel ignored.')
+            log.debug('No order in the book to cancel, cancel ignored.')
             return [], None
         else:
             amount_canceled=0
@@ -110,259 +87,214 @@ class IEXBook:
 
             return [(id, amount_canceled)], bbo_update
 
-    def update_bid(self):
-        best_bid = self.bids.start
-        while best_bid is not None:
-            if best_bid.data.lit == True:
-                break
-            best_bid = best_bid.next
-
-        if best_bid is None:
-            self.bid = MIN_BID
-            new_bbo = bbo(
-                best_ask = self.bbo.best_ask,
-                best_bid = MIN_BID,
-                volume_at_best_ask = self.bbo.volume_at_best_ask,
-                volume_at_best_bid = 0,
-                next_ask = self.bbo.next_ask,
-                next_bid = MIN_BID,
-            )
-        else:
-            self.bid = best_bid.data.price
-            new_bbo = bbo(
-                best_ask = self.bbo.best_ask,
-                best_bid = best_bid.data.price,
-                volume_at_best_ask = self.bbo.volume_at_best_ask,
-                volume_at_best_bid = best_bid.data.interest,
-                next_ask = self.bbo.next_ask,
-                next_bid = best_bid.next.data.price if best_bid.next else MIN_BID,
-            )
-
-        if new_bbo != self.bbo:
-            self.bbo = new_bbo
-            return new_bbo
-
-    def update_ask(self):
-        best_ask = self.asks.start
-        while best_ask is not None:
-            if best_ask.data.lit == True:
-                break
-            best_ask = best_ask.next
-
-        if best_ask is None:
-            self.ask = MAX_ASK
-            new_bbo = bbo(
-                best_ask = MAX_ASK,
-                best_bid = self.bbo.best_bid,
-                volume_at_best_ask = 0,
-                volume_at_best_bid = self.bbo.volume_at_best_bid,
-                next_ask = MAX_ASK,
-                next_bid = self.bbo.next_bid,
-            )
-        else:
-            self.ask = best_ask.data.price
-            new_bbo = bbo(
-                best_ask = best_ask.data.price,
-                best_bid = self.bbo.best_bid,
-                volume_at_best_ask = best_ask.data.interest,
-                volume_at_best_bid = self.bbo.volume_at_best_bid,
-                next_ask = best_ask.next.data.price if best_ask.next else MAX_ASK,
-                next_bid = self.bbo.next_bid,
-            )
-
-        if new_bbo != self.bbo:
-            self.bbo = new_bbo
-            return new_bbo
-
-    def enter_buy(self, id, price, volume, lit, enter_into_book, midpoint_peg=False):
+    def enter_buy(self, order_id, price, volume, enter_into_book, midpoint_peg=False):
         '''
-        Enter a limit order to buy at price price: first, try and fulfill as much as possible, then enter a
+        Enter a limit order to buy at price price: first, try and fulfill as much as possible, then enter if required
         '''
-        order_crosses=[]
+        order_crosses = []
         entered_order = None
         bbo_update = None
-        effective_price = price
-        if midpoint_peg: 
-            nbbo = self.nbbo_midpoint
-            effective_price = price if price < nbbo else nbbo
+
+        if midpoint_peg and not self.peg_price:
+            log.warn('pegged order entered before peg price is set, dropping order')
+            return ([], (), None)
+        # if this order is pegged and its start price isn't aggressive, just drop it
+        if midpoint_peg and price < self.peg_price: 
+            return ([], (), None)
+
+        # if this order is pegged and it is aggressive enough, use peg point as the price
+        if midpoint_peg:
+            effective_price = self.peg_price
+        # otherwise it's a normal order, just use its normal price
+        else:
+            effective_price = price
+
         volume_to_fill = volume
-        if effective_price >= self.ask:
-            for price_q in self.asks.ascending_items():
-                if price_q.price > effective_price:
-                    break
-                
-                (filled, fulfilling_orders, drained_orders) = price_q.fill_order(volume_to_fill)
-                if drained_orders:
-                    in_mpegs = map(lambda x: x if x in self.mpegs else None, drained_orders)
-                    mpegs = list(filter(lambda x: x is True, in_mpegs))
-                    for mpeg in mpegs:
-                        assert self.mpegs[mpeg]
-                        del self.mpegs[mpeg]
+        # edge case: we need to check pegged orders even when there are no normal orders
+        if self.peg_price and len(self.asks) == 0 and effective_price >= self.peg_price:
+            fulfilling_orders = self.fill_pegged_orders(volume_to_fill, False)
+            for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                order_crosses.append(((order_id, fulfilling_order_id), self.peg_price, cross_volume))
+                volume_to_fill -= cross_volume
 
+        peg_checked = False
+        for price_q in self.asks.ascending_items():
+            # if we've already checked all more agressive limit orders, check pegged orders
+            if not peg_checked and self.peg_price and self.peg_price < price_q.price and effective_price >= self.peg_price:
+                fulfilling_orders = self.fill_pegged_orders(volume_to_fill, False)
                 for (fulfilling_order_id, cross_volume) in fulfilling_orders:
-                    order_crosses.append(((id, fulfilling_order_id), price_q.price, cross_volume))
+                    order_crosses.append(((order_id, fulfilling_order_id), self.peg_price, cross_volume))
                     volume_to_fill -= cross_volume
-                
-                if price_q.interest==0:
-                    self.asks.remove((effective_price, price_q.lit))
-                    new_bbo = self.update_ask()
-                    if new_bbo:
-                        bbo_update = new_bbo
+                peg_checked = True
 
-                if volume_to_fill <= 0:
-                    break                    
+            if price_q.price > effective_price:
+                break
+            
+            (filled, fulfilling_orders) = price_q.fill_order(volume_to_fill)
+
+            for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                order_crosses.append(((order_id, fulfilling_order_id), price_q.price, cross_volume))
+                volume_to_fill -= cross_volume
+            
+            if price_q.interest==0:
+                self.asks.remove(price_q.price)
+                new_bbo = self.update_ask()
+                if new_bbo:
+                    bbo_update = new_bbo
+
+            if volume_to_fill <= 0:
+                break                    
 
         if volume_to_fill > 0 and enter_into_book:
-            self.bids[(effective_price, lit)].add_order(id, volume_to_fill)
-            new_bbo = self.update_bid()
-            if new_bbo:
-                bbo_update = new_bbo
-            entered_order = (id, price, volume_to_fill)
-            if midpoint_peg and id not in self.mpegs:
-                self.mpegs[id] = price
+            if midpoint_peg:
+                self.pegged_bids[order_id] = volume_to_fill
+            else:
+                self.bids[price].add_order(order_id, volume_to_fill)
+                new_bbo = self.update_bid()
+                if new_bbo:
+                    bbo_update = new_bbo
+            entered_order = (order_id, effective_price, volume_to_fill)
+
         return (order_crosses, entered_order, bbo_update) 
 
-    def enter_sell(self, id, price, volume, lit, enter_into_book, midpoint_peg=True):
+    def enter_sell(self, order_id, price, volume, enter_into_book, midpoint_peg=False):
         '''
-        Enter a limit order to sell at price price: first try and fulfill as much as possible, then enter the
-        remaining as a limit sell
+        Enter a limit order to sell at price price: first, try and fulfill as much as possible, then enter if required
         '''
-        order_crosses=[]
+        order_crosses = []
         entered_order = None
         bbo_update = None
-        effective_price = price
-        if midpoint_peg: 
-            nbbo = self.nbbo_midpoint 
-            effective_price = price if price > nbbo else nbbo
-        volume_to_fill = volume
-        if effective_price <= self.bid:
-            for price_q in self.bids.ascending_items():
-                if price_q.price < effective_price:
-                    break
-                
-                (filled, fulfilling_orders, drained_orders) = price_q.fill_order(volume_to_fill)
-                if drained_orders:
-                    in_mpegs = map(lambda x: x if x in self.mpegs else None, drained_orders)
-                    mpegs = list(filter(lambda x: x is True, in_mpegs))
-                    if mpegs:
-                        for mpeg in mpegs:
-                            assert self.mpegs[mpeg]
-                            del self.mpegs[mpeg]
-                for (fulfilling_order_id, cross_volume) in fulfilling_orders:
-                    order_crosses.append(((id, fulfilling_order_id), price_q.price, cross_volume))
-                    volume_to_fill -= cross_volume
-                
-                if price_q.interest==0:
-                    self.bids.remove((price_q.price, price_q.lit))
-                    new_bbo = self.update_bid()
-                    if new_bbo:
-                        bbo_update = new_bbo
 
-                if volume_to_fill <= 0:
-                    break                    
+        if midpoint_peg and not self.peg_price:
+            log.warn('pegged order entered before peg price is set, dropping order')
+            return ([], (), None)
+        # if this order is pegged and its start price isn't aggressive, just drop it
+        if midpoint_peg and price > self.peg_price: 
+            return ([], (), None)
+
+        # if this order is pegged and it is aggressive enough, use peg point as the price
+        if midpoint_peg:
+            effective_price = self.peg_price
+        # otherwise it's a normal order, just use its normal price
+        else:
+            effective_price = price
+
+        volume_to_fill = volume
+        # edge case: we need to check pegged orders even when there are no normal orders
+        if self.peg_price and len(self.bids) == 0 and effective_price <= self.peg_price:
+            fulfilling_orders = self.fill_pegged_orders(volume_to_fill, True)
+            for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                order_crosses.append(((order_id, fulfilling_order_id), self.peg_price, cross_volume))
+                volume_to_fill -= cross_volume
+
+        peg_checked = False
+        for price_q in self.bids.ascending_items():
+            # if we've already checked all more agressive limit orders,
+            # check pegged orders. use flag so pegs are only checked once
+            if not peg_checked and self.peg_price and self.peg_price > price_q.price and effective_price <= self.peg_price:
+                fulfilling_orders = self.fill_pegged_orders(volume_to_fill, True)
+                for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                    order_crosses.append(((order_id, fulfilling_order_id), self.peg_price, cross_volume))
+                    volume_to_fill -= cross_volume
+                peg_checked = True
+
+            if price_q.price < effective_price:
+                break
             
+            (filled, fulfilling_orders) = price_q.fill_order(volume_to_fill)
+
+            for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                order_crosses.append(((order_id, fulfilling_order_id), price_q.price, cross_volume))
+                volume_to_fill -= cross_volume
+            
+            if price_q.interest==0:
+                self.bids.remove(price_q.price)
+                new_bbo = self.update_bid()
+                if new_bbo:
+                    bbo_update = new_bbo
+
+            if volume_to_fill <= 0:
+                break                    
+
         if volume_to_fill > 0 and enter_into_book:
-            self.asks[(effective_price, lit)].add_order(id, volume_to_fill)
-            new_bbo = self.update_ask()
-            if new_bbo:
-                bbo_update = new_bbo
-            entered_order = (id, price, volume_to_fill)
-            if midpoint_peg and id not in self.mpegs:
-                self.mpegs[id] = price
+            if midpoint_peg:
+                self.pegged_asks[order_id] = volume_to_fill
+            else:
+                self.asks[price].add_order(order_id, volume_to_fill)
+                new_bbo = self.update_ask()
+                if new_bbo:
+                    bbo_update = new_bbo
+            entered_order = (order_id, effective_price, volume_to_fill)
+
         return (order_crosses, entered_order, bbo_update) 
     
-    def enter_from_nbbo(self, id, price, volume, lit, buy_sell_indicator, midpoint_peg=True):
-        if buy_sell_indicator == b'B':
-            order_crosses, entered_order, new_bbo = self.enter_buy(id, price, volume, lit, True, midpoint_peg=True)
-        elif buy_sell_indicator == b'S':
-            order_crosses, entered_order, new_bbo = self.enter_sell(id, price, volume, lit, True, midpoint_peg=True)
+    # check whether any pegged bids have crossed with non-pegged asks
+    # and return crosses/new bbo if they have
+    def check_ask_peg_cross(self):
+        if not len(self.pegged_bids) or not len(self.asks):
+            return ([], None)
+
+        order_crosses = []
+        for price_q in self.asks.ascending_items():
+            if price_q.price > self.peg_price:
+                break
+
+            for (pegged_order_id, pegged_order_volume) in self.pegged_bids.items():
+                (filled, fulfilling_orders) = price_q.fill_order(pegged_order_volume)
+                for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                    order_crosses.append(((pegged_order_id, fulfilling_order_id), price_q.price, cross_volume))
+
+                self.pegged_bids[pegged_order_id] -= filled
+                # if filling this order used all the peg's volume, remove the peg
+                if self.pegged_bids[pegged_order_id] == 0:
+                    del self.pegged_bids[pegged_order_id]
+                
+            if price_q.interest == 0:
+                self.asks.remove(price_q.price)
+
+        bbo_update = None
+        if len(order_crosses):
+            bbo_update = self.update_ask()
+        return (order_crosses, bbo_update)
+
+    # check whether any pegged asks have crossed with non-pegged bids
+    # and return crosses/new bbo if they have
+    def check_bid_peg_cross(self):
+        if not len(self.pegged_asks) or not len(self.bids):
+            return ([], None)
+
+        order_crosses = []
+        for price_q in self.bids.ascending_items():
+            if price_q.price < self.peg_price:
+                break
+
+            for (pegged_order_id, pegged_order_volume) in self.pegged_asks.items():
+                (filled, fulfilling_orders) = price_q.fill_order(pegged_order_volume)
+                for (fulfilling_order_id, cross_volume) in fulfilling_orders:
+                    order_crosses.append(((pegged_order_id, fulfilling_order_id), price_q.price, cross_volume))
+
+                self.pegged_asks[pegged_order_id] -= filled
+                # if filling this order used all the peg's volume, remove the peg
+                if self.pegged_asks[pegged_order_id] == 0:
+                    del self.pegged_asks[pegged_order_id]
+
+            if price_q.interest == 0:
+                self.bids.remove(price_q.price)
+
+        bbo_update = None
+        if len(order_crosses):
+            bbo_update = self.update_bid()
+        return (order_crosses, bbo_update)
+
+    # called externally:
+    # change the peg price for midpoint pegged orders.
+    # possible return a list of crossed orders and/or a new bbo
+    def update_peg_price(self, new_price):
+        old_price = self.peg_price
+        self.peg_price = new_price
+        if old_price is None:
+            return ([], None)
+        elif new_price > old_price:
+            return self.check_ask_peg_cross()
         else:
-            return None
-        return new_bbo
-        
-
-    def nbbo_update(self, new_nbbo):
-        def update_rule(price, limit, buy_sell_indicator):
-            new_price = new_nbbo
-            aggressive = False
-            constant = 1 if buy_sell_indicator == b'B' else -1
-            if constant * limit < constant * new_nbbo:
-                new_price = limit
-            if constant * price < constant * new_nbbo:
-                aggressive = True
-            return (new_price, aggressive)
-
-        cancels_bus = []
-        enter_aggresive_bus = []
-        enter_passive_bus = []
-        for bpq in itertools.chain(self.bids.descending_items(), self.asks.descending_items()):
-             mpegs = [(ix, vol) for ix, vol in bpq.order_q.items() if ix in self.mpegs]
-             if mpegs:
-                 for pair in mpegs:
-                    mpeg_id, volume = pair
-                    limit = self.mpegs[mpeg_id]
-                    new_price, aggressive = update_rule(bpq.price, limit, bpq.side)
-                    if new_price != bpq.price:
-                        cancel_args = (mpeg_id, bpq.price, bpq.side, bpq.lit)
-                        cancels_bus.append(cancel_args)
-                        enter_args = (mpeg_id, new_price, volume, bpq.lit, bpq.side)
-                        if aggressive:
-                            enter_aggresive_bus.append(enter_args)
-                        else:
-                            enter_passive_bus.append(enter_args)
-
-        for args in cancels_bus:
-            self.cancel_from_nbbo(*args)
-        self.nbbo_midpoint = new_nbbo    
-        new_bbo = None
-        for l in enter_passive_bus, enter_aggresive_bus:
-            for args in l:
-                new_bbo = self.enter_from_nbbo(*args)
-        return new_bbo
-        
-
-
-def test():
-    book = IEXBook()
-    (crossed_orders, entered_order, new_bbo) =  book.enter_buy(1, 10, 2, True, True, midpoint_peg=False)
-    assert len(crossed_orders)==0
-    assert entered_order==(1,10,2)
-    assert book.bid==10
-    print(book, new_bbo)
-
-    (crossed_orders, entered_order, new_bbo)  = book.enter_buy(2, 11, 3, True, True, midpoint_peg=False)
-    assert len(crossed_orders)==0
-    assert entered_order==(2,11,3)
-    assert book.bid==11
-    print(book, new_bbo)
-
-    (crossed_orders, entered_order, new_bbo) = book.enter_sell(3, 8, 10, True, True, midpoint_peg=True)
-    assert len(crossed_orders)==2
-    assert crossed_orders[0]==((3, 2), 11, 3)
-    assert crossed_orders[1]==((3, 1), 10, 2)
-    assert entered_order==(3,8,5)
-    print(book, new_bbo)
-    (crossed_orders, entered_order, new_bbo) = book.enter_sell(4, MIN_BID, 10, True, True, midpoint_peg=True)
-    print(book, new_bbo)
-    (crossed_orders, entered_order, new_bbo) = book.enter_sell(5, MIN_BID, 5, True, True, midpoint_peg=True)
-    print(book, new_bbo)
-    (crossed_orders, entered_order, new_bbo) = book.enter_buy(6, MAX_ASK, 5, True, True, midpoint_peg=False)
-    print(book, new_bbo)
-    (crossed_orders, entered_order, new_bbo) = book.enter_buy(7, MAX_ASK, 5, True, True, midpoint_peg=True)
-    print(book, new_bbo)
-    for nbbo in (14, 8, 6, 9, 4):
-        new_bbo = book.nbbo_update(nbbo)
-        print(book, new_bbo)  
-    (crossed_orders, entered_order, new_bbo) = book.enter_buy(8, 20, 20, False, True, midpoint_peg=True)
-    print(book, new_bbo)
-    (crossed_orders, entered_order, new_bbo) = book.enter_buy(9, 18, 20, True, True, midpoint_peg=True)
-    print(book, new_bbo)
-    for nbbo in (15, 18, 24, 10):
-        new_bbo = book.nbbo_update(nbbo)
-        print(book, new_bbo)
-
-
-    #should sell to both of the entered buy orders
-
-if __name__ == '__main__':
-    test()
+            return self.check_bid_peg_cross()

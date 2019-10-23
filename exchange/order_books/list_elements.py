@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import logging as log
-from .book_price_q import BookPriceQ, IEXBookPriceQ
+from .book_price_q import BookPriceQ
 
 
 class Node:
@@ -75,6 +75,9 @@ class SortedIndexedDefaultList:
 		else:
 			return self.index[index].data	
 
+	def __len__(self):
+		return len(self.index)
+
 	def remove(self, index):
 		try:
 			node = self.index[index]
@@ -106,76 +109,3 @@ class SortedIndexedDefaultList:
 		while current is not None:
 			yield current.data
 			current = current.prev
-
-class IEXAskList(SortedIndexedDefaultList):
-
-	def __init__(self):
-		super().__init__(index_func=lambda bpq: ( bpq.price,  not bpq.lit), 
-			initializer=lambda price, lit: IEXBookPriceQ(price, b'S', lit=lit))
-	
-	@staticmethod
-	def adjust_index(index):
-		price, lit = index
-		adjusted_index = price, not lit
-		return adjusted_index
-	
-	def __getitem__(self, index):
-		adjusted_index = self.adjust_index(index)
-		if adjusted_index not in self.index:
-			price, lit = index
-			return self.insert(self.initializer(price, lit=lit))
-		else:
-			return self.index[adjusted_index].data		
-	
-	def __contains__(self, index):
-		booly = super().__contains__(self.adjust_index(index))
-		return booly
-
-	def remove(self, index):
-		super().remove(self.adjust_index(index))
-
-class IEXBidList(SortedIndexedDefaultList):
-
-	def __init__(self):
-		super().__init__(index_func=lambda bpq: ( - bpq.price, not bpq.lit), 
-			initializer=lambda price, lit: IEXBookPriceQ(price, b'B', lit=lit))
-		
-	@staticmethod
-	def adjust_index(index):
-		price, lit = index
-		adjusted_index =  - price, not lit
-		return adjusted_index
-
-	def __getitem__(self, index):
-		adjusted_index = self.adjust_index(index)
-		if adjusted_index not in self.index:
-			price, lit = index
-			return self.insert(self.initializer(price, lit=lit))
-		else:		
-			return self.index[adjusted_index].data	
-	
-	def __contains__(self, index):
-		booly = super().__contains__(self.adjust_index(index))
-		return booly
-
-	def remove(self, index):
-		super().remove(self.adjust_index(index))
-
-
-if __name__ == '__main__':
-	for l in IEXAskList(), IEXBidList():
-		for price in (9, 11, 12 , 14):
-			l.insert(IEXBookPriceQ(price, b'X'))
-		l[(8, False)]
-		for price in (9, 10, 12 , 14):
-			l.insert(IEXBookPriceQ(price, b'X', lit=True))
-		for each in l.ascending_items():
-			print(each)
-		print()
-		l.remove((9, False))
-		l.remove((12, False))
-		l.remove((9, True))
-		for each in l.ascending_items():
-			print(each)
-		print()
-	

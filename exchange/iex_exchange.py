@@ -72,7 +72,8 @@ class IEXExchange(Exchange):
                 order_reference_number=next(self.order_ref_numbers),
                 timestamp=timestamp)
             self.order_store.add_to_order(m['order_token'], m)
-            self.outgoing_messages.append(m)
+            if order_is_lit:
+                self.outgoing_messages.append(m)
             cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
                                 for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
             self.outgoing_messages.extend(cross_messages)
