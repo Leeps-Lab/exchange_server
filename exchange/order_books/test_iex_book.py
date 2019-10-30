@@ -255,6 +255,53 @@ class TestIEXBook(unittest.TestCase):
         self.assertEqual(len(book.pegged_bids), 0)
         self.assertEqual(len(book.pegged_asks), 0)
 
+    def test_cancel(self):
+        book = IEXBook()
+        book.update_peg_price(10)
+
+        # enter sell at $15
+        (crossed_orders, entered_order, new_bbo) = book.enter_sell(1, 15, 1, True, midpoint_peg=False)
+        # enter sell at $8
+        (crossed_orders, entered_order, new_bbo) = book.enter_sell(2, 8, 1, True, midpoint_peg=False)
+
+        # completely cancel both these orders
+        (cancelled_orders, new_bbo) = book.cancel_order(1, 15, 0, b'S', midpoint_peg=False)
+        self.assertEqual(cancelled_orders, [(1, 1)])
+        (cancelled_orders, new_bbo) = book.cancel_order(2, 8, 0, b'S', midpoint_peg=False)
+        self.assertEqual(cancelled_orders, [(2, 1)])
+
+        # no asks
+        self.assertEqual(len(book.asks), 0)
+
+        # enter buy at $4
+        (crossed_orders, entered_order, new_bbo) = book.enter_buy(1, 4, 1, True, midpoint_peg=False)
+        # enter buy at $8
+        (crossed_orders, entered_order, new_bbo) = book.enter_buy(2, 8, 1, True, midpoint_peg=False)
+
+        # completely cancel both these orders
+        (cancelled_orders, new_bbo) = book.cancel_order(1, 4, 0, b'B', midpoint_peg=False)
+        self.assertEqual(cancelled_orders, [(1, 1)])
+        (cancelled_orders, new_bbo) = book.cancel_order(2, 8, 0, b'B', midpoint_peg=False)
+        self.assertEqual(cancelled_orders, [(2, 1)])
+
+        # no bids
+        self.assertEqual(len(book.bids), 0)
+
+        # enter pegged sell
+        (crossed_orders, entered_order, new_bbo) = book.enter_sell(1, 8, 4, True, midpoint_peg=True)
+
+        # partially cancel
+        (cancelled_orders, new_bbo) = book.cancel_order(1, 4, 1, b'S', midpoint_peg=True)
+        self.assertEqual(cancelled_orders, [(1, 3)])
+
+        # submit a pegged buy to clear the market
+        (crossed_orders, entered_order, new_bbo) = book.enter_buy(2, 12, 1, True, midpoint_peg=True)
+        self.assertEqual(crossed_orders, [((2, 1), 10, 1)])
+        
+        # no pegged bids or asks
+        self.assertEqual(len(book.pegged_bids), 0)
+        self.assertEqual(len(book.pegged_asks), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

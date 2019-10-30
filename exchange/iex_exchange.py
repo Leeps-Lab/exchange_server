@@ -38,9 +38,15 @@ class IEXExchange(Exchange):
         asyncio.ensure_future(self.send_outgoing_broadcast_messages())
 
     def external_feed_change(self, message, timestamp):
-        nbbo = (message['e_best_bid'] + message['e_best_offer']) / 2
-        log.debug('NBBO Change: new NBBO is %d', nbbo)
-        self.order_book.nbbo_update(nbbo)
+        peg_point = (message['e_best_bid'] + message['e_best_offer']) // 2
+        log.debug('Peg update: new peg is is %d', peg_point)
+        (crossed_orders, new_bbo) = self.order_book.update_peg_price(peg_point)
+        cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
+                            for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
+        self.outgoing_messages.extend(cross_messages)
+        if new_bbo:
+            bbo_message = self.best_quote_update(message, new_bbo, timestamp)
+            self.outgoing_broadcast_messages.append(bbo_message)
 
     # kind of a bummer that so much of this has to be repeated, but I can't think of a better way
     def enter_order_atomic(self, enter_order_message, timestamp, executed_quantity = 0):
@@ -54,7 +60,6 @@ class IEXExchange(Exchange):
         else:
             time_in_force = enter_order_message['time_in_force']
             enter_into_book = True if time_in_force > 0 else False    
-            order_is_lit = not enter_order_message['midpoint_peg']
             if time_in_force > 0 and time_in_force < 99998:     #schedule a cancellation at some point in the future
                 cancel_order_message = self.cancel_order_from_enter_order( enter_order_message )
                 self.loop.call_later(time_in_force, partial(self.cancel_order_atomic, cancel_order_message, timestamp))
@@ -64,7 +69,6 @@ class IEXExchange(Exchange):
                     enter_order_message['order_token'],
                     enter_order_message['price'],
                     enter_order_message['shares'],
-                    order_is_lit,
                     enter_into_book,
                     enter_order_message['midpoint_peg'])
             log.debug("Resulting book: %s", self.order_book)
@@ -72,7 +76,8 @@ class IEXExchange(Exchange):
                 order_reference_number=next(self.order_ref_numbers),
                 timestamp=timestamp)
             self.order_store.add_to_order(m['order_token'], m)
-            if order_is_lit:
+            # if order is unpegged, send a confirmation
+            if not enter_order_message['midpoint_peg']:
                 self.outgoing_messages.append(m)
             cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
                                 for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
@@ -87,13 +92,11 @@ class IEXExchange(Exchange):
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
             original_enter_message = store_entry.original_enter_message
-            order_is_lit = not original_enter_message['midpoint_peg']
             cancelled_orders, new_bbo = self.order_book.cancel_order(
-                id = cancel_order_message['order_token'],
+                order_id = cancel_order_message['order_token'],
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = original_enter_message['buy_sell_indicator'],
-                lit=order_is_lit,
                 midpoint_peg=original_enter_message['midpoint_peg'])
             cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
@@ -117,14 +120,12 @@ class IEXExchange(Exchange):
         else:
             store_entry = self.order_store.orders[replace_order_message['existing_order_token']]
             original_enter_message = store_entry.original_enter_message
-            order_is_lit = not original_enter_message['midpoint_peg']
             log.debug('store_entry: %s', store_entry)
             cancelled_orders, new_bbo_post_cancel = self.order_book.cancel_order(
-                id = replace_order_message['existing_order_token'],
+                order_id = replace_order_message['existing_order_token'],
                 price = store_entry.first_message['price'],
                 volume = 0,
                 buy_sell_indicator = original_enter_message['buy_sell_indicator'],
-                lit=order_is_lit,
                 midpoint_peg=original_enter_message['midpoint_peg'])  # Fully cancel
             
             if len(cancelled_orders)==0:
@@ -154,7 +155,6 @@ class IEXExchange(Exchange):
                             replace_order_message['replacement_order_token'],
                             replace_order_message['price'],
                             liable_shares,
-                            order_is_lit,
                             enter_into_book,
                             midpoint_peg=original_enter_message['midpoint_peg'])
                     log.debug("Resulting book: %s", self.order_book)

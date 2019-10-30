@@ -49,45 +49,34 @@ Peg Price: ${}
                 volume_to_fill -= order_volume
         return fulfilling_orders
 
-    def cancel_order(self, id, price, volume, buy_sell_indicator, lit, midpoint_peg):
+    def cancel_order(self, order_id, price, volume, buy_sell_indicator, midpoint_peg):
         '''
         Cancel all or part of an order. Volume refers to the desired remaining shares to be executed: if it is 0, the order is
         fully cancelled, otherwise an order of volume volume remains.
         '''
-        orders = self.bids if buy_sell_indicator == b'B' else self.asks
-        effective_price = price
-        if midpoint_peg and price not in self.bounds:
-            # order is a limit midpoint peg
-            effective_price = self.calc_limpeg_price(price, buy_sell_indicator)
-        if (effective_price, lit) not in orders or id not in orders[(effective_price, lit)].order_q:
+
+        if midpoint_peg:
+            return self.cancel_pegged_order(order_id, volume, buy_sell_indicator)
+        else:
+            return super().cancel_order(order_id, price, volume, buy_sell_indicator)
+    
+    def cancel_pegged_order(self, order_id, volume, buy_sell_indicator):
+        order_queue = self.pegged_bids if buy_sell_indicator == b'B' else self.pegged_asks
+        if order_id not in order_queue:
             log.debug('No order in the book to cancel, cancel ignored.')
             return [], None
+        
+        if volume == 0:
+            amount_canceled = order_queue[order_id]
+            del order_queue[order_id]
+        elif order_queue[order_id] > volume:
+            amount_canceled = order_queue[order_id] - volume
+            order_queue[order_id] = volume
         else:
-            amount_canceled=0
-            current_volume=orders[(effective_price, lit)].order_q[id]
-            if volume==0:                                         #fully cancel
-                orders[(effective_price, lit)].cancel_order(id)
-                if midpoint_peg:
-                    del self.mpegs[id]
-                amount_canceled = current_volume
-                if orders[(effective_price, lit)].interest == 0:
-                    orders.remove((effective_price, lit))
-            elif current_volume >= volume:
-                orders[(effective_price, lit)].reduce_order(id, volume)        
-                amount_canceled = current_volume - volume
-            else:
-                amount_canceled = 0
+            amount_canceled = 0
+        return [(order_id, amount_canceled)], None
 
-            if effective_price == self.bid:
-                bbo_update = self.update_bid()
-            elif effective_price == self.ask:
-                bbo_update = self.update_ask()
-            else:
-                bbo_update = None
-
-            return [(id, amount_canceled)], bbo_update
-
-    def enter_buy(self, order_id, price, volume, enter_into_book, midpoint_peg=False):
+    def enter_buy(self, order_id, price, volume, enter_into_book, midpoint_peg):
         '''
         Enter a limit order to buy at price price: first, try and fulfill as much as possible, then enter if required
         '''
@@ -157,7 +146,7 @@ Peg Price: ${}
 
         return (order_crosses, entered_order, bbo_update) 
 
-    def enter_sell(self, order_id, price, volume, enter_into_book, midpoint_peg=False):
+    def enter_sell(self, order_id, price, volume, enter_into_book, midpoint_peg):
         '''
         Enter a limit order to sell at price price: first, try and fulfill as much as possible, then enter if required
         '''
@@ -239,7 +228,7 @@ Peg Price: ${}
             if price_q.price > self.peg_price:
                 break
 
-            for (pegged_order_id, pegged_order_volume) in self.pegged_bids.items():
+            for (pegged_order_id, pegged_order_volume) in list(self.pegged_bids.items()):
                 (filled, fulfilling_orders) = price_q.fill_order(pegged_order_volume)
                 for (fulfilling_order_id, cross_volume) in fulfilling_orders:
                     order_crosses.append(((pegged_order_id, fulfilling_order_id), price_q.price, cross_volume))
@@ -268,7 +257,7 @@ Peg Price: ${}
             if price_q.price < self.peg_price:
                 break
 
-            for (pegged_order_id, pegged_order_volume) in self.pegged_asks.items():
+            for (pegged_order_id, pegged_order_volume) in list(self.pegged_asks.items()):
                 (filled, fulfilling_orders) = price_q.fill_order(pegged_order_volume)
                 for (fulfilling_order_id, cross_volume) in fulfilling_orders:
                     order_crosses.append(((pegged_order_id, fulfilling_order_id), price_q.price, cross_volume))
