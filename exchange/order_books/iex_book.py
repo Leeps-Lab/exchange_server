@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import logging as log
-from .cda_book import CDABook, bbo, MIN_BID, MAX_ASK
+from .cda_book import CDABook, bbo
 
 class IEXBook(CDABook):
 
@@ -281,8 +281,17 @@ Peg Price: ${}
     def update_peg_price(self, new_price):
         old_price = self.peg_price
         self.peg_price = new_price
-        if old_price is None:
+        if new_price is None:
             return ([], None)
+        elif old_price is None:
+            # if we go from no peg to having a peg, we need to check for both bid and ask crosses
+            ask_crosses, ask_bbo = self.check_ask_peg_cross()
+            bid_crosses, bid_bbo = self.check_bid_peg_cross()
+            crosses = ask_crosses + bid_crosses
+            if bid_bbo is not None:
+                return (crosses, bid_bbo)
+            else:
+                return (crosses, ask_bbo)
         elif new_price > old_price:
             return self.check_ask_peg_cross()
         else:

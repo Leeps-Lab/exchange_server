@@ -4,6 +4,7 @@ from functools import partial
 from exchange.exchange import Exchange
 from OuchServer.ouch_server import nanoseconds_since_midnight
 from OuchServer.ouch_messages import OuchClientMessages, OuchServerMessages
+from .order_books.cda_book import MIN_BID, MAX_ASK
 
 class IEXExchange(Exchange):
     delayed_message_types = (
@@ -38,7 +39,10 @@ class IEXExchange(Exchange):
         asyncio.ensure_future(self.send_outgoing_broadcast_messages())
 
     def external_feed_change(self, message, timestamp):
-        peg_point = (message['e_best_bid'] + message['e_best_offer']) // 2
+        if message['e_best_bid'] == MIN_BID or message['e_best_offer'] >= MAX_ASK:
+            peg_point = None
+        else:
+            peg_point = (message['e_best_bid'] + message['e_best_offer']) // 2
         log.debug('Peg update: new peg is is %d', peg_point)
         (crossed_orders, new_bbo) = self.order_book.update_peg_price(peg_point)
         cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
