@@ -2,7 +2,6 @@ from collections import OrderedDict
 import logging as log
 from exchange.order_books.book_price_q import BookPriceQ
 
-
 class Node:
 	def __init__(self, data, prev = None, next = None):
 		self.data = data
@@ -105,16 +104,15 @@ class SortedIndexedDefaultList:
 			yield current.data
 			current = current.prev
 
-
 if __name__ == '__main__':
-	l = SortedIndexedDefaultList(index_func = lambda bpq : bpq.price, initializer = lambda price: BookPriceQ(price))
-	print(l)
-	l.insert(BookPriceQ(10))
-	print(l)
-	l.insert(BookPriceQ(11))
-	print(l)
-	l.insert(BookPriceQ(9))
-	print(l)
-	l.remove(9)
-	print(l)
+    l = SortedIndexedDefaultList(index_func = lambda bpq : bpq.price, initializer = lambda price: BookPriceQ(price))
+    print(l)
+    l.insert(BookPriceQ(10))
+    print(l)
+    l.insert(BookPriceQ(11))
+    print(l)
+    l.insert(BookPriceQ(9))
+    print(l)
+    l.remove(9)
+    print(l)
 
