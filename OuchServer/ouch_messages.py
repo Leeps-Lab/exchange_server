@@ -137,7 +137,7 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
              'stock', 'price', 'time_in_force', 'firm', 'display',
              'order_reference_number', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'order_state', 'bbo_weight_indicator']
+             'cross_type', 'order_state', 'bbo_weight_indicator', 'midpoint_peg']
         )
     Replaced = ('{timestamp}:{replacement_order_token}({order_reference_number}):{buy_sell_indicator}{shares}x{stock}@{price}',
             {'msg_type': b'U'},
@@ -146,11 +146,11 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
              'time_in_force', 'firm', 'display', 'order_reference_number',
              'capacity', 'intermarket_sweep_eligibility',
              'minimum_quantity', 'cross_type', 'order_state',
-             'previous_order_token', 'bbo_weight_indicator']
+             'previous_order_token', 'bbo_weight_indicator', 'midpoint_peg']
         )
     Canceled = ('{timestamp}:{order_token}:-{decrement_shares}({reason})',
             {'msg_type': b'C'},
-            ['timestamp', 'order_token', 'decrement_shares', 'reason']
+            ['timestamp', 'order_token', 'decrement_shares', 'reason', 'midpoint_peg']
         )
     AIQCanceled = ('{timestamp}:{order_token}:-{decrement_shares}({reason})',
             {'msg_type': b'D'},
@@ -161,7 +161,7 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
     Executed = ('{timestamp}:{order_token}m{match_number}:{executed_shares}@{execution_price}',
             {'msg_type': b'E'},
             ['timestamp', 'order_token', 'executed_shares',
-             'execution_price', 'liquidity_flag', 'match_number']
+             'execution_price', 'liquidity_flag', 'match_number', 'midpoint_peg']
         )
 
     BestBidAndOffer = ('{timestamp}:{stock}:bid:{volume_at_best_bid}@{best_bid}:ask:{volume_at_best_ask}@{best_ask}',

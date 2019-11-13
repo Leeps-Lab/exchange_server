@@ -80,9 +80,7 @@ class IEXExchange(Exchange):
                 order_reference_number=next(self.order_ref_numbers),
                 timestamp=timestamp)
             self.order_store.add_to_order(m['order_token'], m)
-            # if order is unpegged, send a confirmation
-            if not enter_order_message['midpoint_peg']:
-                self.outgoing_messages.append(m)
+            self.outgoing_messages.append(m)
             cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
                                 for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]
             self.outgoing_messages.extend(cross_messages)
@@ -101,8 +99,8 @@ class IEXExchange(Exchange):
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = original_enter_message['buy_sell_indicator'],
-                midpoint_peg=original_enter_message['midpoint_peg'])
-            cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
+                midpoint_peg = original_enter_message['midpoint_peg'])
+            cancel_messages = [  self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
@@ -180,7 +178,8 @@ class IEXExchange(Exchange):
                             cross_type=b'*',
                             order_state=b'L' if entered_order is not None else b'D',
                             previous_order_token=replace_order_message['existing_order_token'],
-                            bbo_weight_indicator=b'*'
+                            bbo_weight_indicator=b'*',
+                            midpoint_peg=original_enter_message['midpoint_peg']
                             )
                     r.meta = replace_order_message.meta
                     self.outgoing_messages.append(r)

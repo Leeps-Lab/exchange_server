@@ -72,7 +72,8 @@ class Exchange:
             capacity=enter_order_message['capacity'],
             intermarket_sweep_eligibility=enter_order_message['intermarket_sweep_eligibility'],
             minimum_quantity=enter_order_message['minimum_quantity'],
-            cross_type=enter_order_message['cross_type'])
+            cross_type=enter_order_message['cross_type'],
+            midpoint_peg=enter_order_message['midpoint_peg'])
         m.meta = enter_order_message.meta
         return m
 
@@ -92,12 +93,13 @@ class Exchange:
         m.meta = replace_order_message.meta
         return m
 
-    def order_cancelled_from_cancel(self, cancel_order_message, timestamp, amount_canceled, reason=b'U'):
+    def order_cancelled_from_cancel(self, original_enter_message, timestamp, amount_canceled, reason=b'U'):
         m = OuchServerMessages.Canceled(timestamp = timestamp,
-                            order_token = cancel_order_message['order_token'],
+                            order_token = original_enter_message['order_token'],
                             decrement_shares = amount_canceled,
-                            reason = reason)
-        m.meta = cancel_order_message.meta
+                            reason = reason,
+                            midpoint_peg = original_enter_message['midpoint_peg'])
+        m.meta = original_enter_message.meta
         return m
     
     def best_quote_update(self, order_message, new_bbo, timestamp):
@@ -116,23 +118,27 @@ class Exchange:
         log.debug('incoming order message: %s, fullfilling order message: %s',order_message,fulfilling_order_message)
         match_number = self.next_match_number
         self.next_match_number += 1
+        original_enter_message = self.order_store.orders[id].original_enter_message
         r1 = OuchServerMessages.Executed(
                 timestamp = timestamp,
                 order_token = id,
                 executed_shares = volume,
                 execution_price = price,
                 liquidity_flag = liquidity_flag,
-                match_number = match_number
+                match_number = match_number,
+                midpoint_peg = original_enter_message['midpoint_peg']
                 )
         r1.meta = order_message.meta
         self.order_store.add_to_order(r1['order_token'], r1)
+        fulfilling_original_enter_message = self.order_store.orders[fulfilling_order_id].original_enter_message
         r2 = OuchServerMessages.Executed(
                 timestamp = timestamp,
                 order_token = fulfilling_order_id,
                 executed_shares = volume,
                 execution_price = price,
                 liquidity_flag = liquidity_flag,
-                match_number = match_number
+                match_number = match_number,
+                midpoint_peg = fulfilling_original_enter_message['midpoint_peg']
                 )
         r2.meta = fulfilling_order_message.meta
         self.order_store.add_to_order(r2['order_token'], r2)
@@ -177,12 +183,13 @@ class Exchange:
             log.debug('No such order to cancel, ignored')
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
+            original_enter_message = store_entry.original_enter_message
             cancelled_orders, new_bbo = self.order_book.cancel_order(
                 id = cancel_order_message['order_token'],
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            cancel_messages = [  self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
+            cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
@@ -272,7 +279,8 @@ class Exchange:
                             cross_type=b'*',
                             order_state=b'L' if entered_order is not None else b'D',
                             previous_order_token=replace_order_message['existing_order_token'],
-                            bbo_weight_indicator=b'*'
+                            bbo_weight_indicator=b'*',
+                            midpoint_peg=original_enter_message['midpoint_peg']
                             )
                     r.meta = replace_order_message.meta
                     self.outgoing_messages.append(r)

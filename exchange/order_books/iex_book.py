@@ -8,7 +8,6 @@ class IEXBook(CDABook):
         super().__init__()
 
         self.peg_price = None
-        # pegged order list entries look like (ORDER_ID, VOLUME)
         self.pegged_bids = OrderedDict()
         self.pegged_asks = OrderedDict()
 
