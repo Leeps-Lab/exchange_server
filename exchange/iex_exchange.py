@@ -16,6 +16,7 @@ class IEXExchange(Exchange):
     def __init__(self, delay, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.delay = delay
+        self.previous_peg_state = 0
         self.handlers.update({
             OuchClientMessages.ExternalFeedChange: self.external_feed_change,
         })
@@ -51,6 +52,7 @@ class IEXExchange(Exchange):
         if new_bbo:
             bbo_message = self.best_quote_update(message, new_bbo, timestamp)
             self.outgoing_broadcast_messages.append(bbo_message)
+        self.send_peg_state_update(timestamp)
 
     # kind of a bummer that so much of this has to be repeated, but I can't think of a better way
     def enter_order_atomic(self, enter_order_message, timestamp, executed_quantity = 0):
@@ -87,6 +89,7 @@ class IEXExchange(Exchange):
             if new_bbo:
                 bbo_message = self.best_quote_update(enter_order_message, new_bbo, timestamp)
                 self.outgoing_broadcast_messages.append(bbo_message)
+            self.check_for_peg_update(timestamp)
 
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
@@ -108,6 +111,8 @@ class IEXExchange(Exchange):
             if new_bbo:
                 bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
                 self.outgoing_broadcast_messages.append(bbo_message)
+            if original_enter_message['midpoint_peg']:
+                self.send_peg_state_update(timestamp)
 
     # replace for iex is a little weird, right now it maintains the litness of any replaced order.
     # it doesn't really make sense to replace a pegged order at all for our implementation, so this should work fine.
@@ -201,3 +206,27 @@ class IEXExchange(Exchange):
                             new_bbo_post_cancel, timestamp)
                     if bbo_message:
                         self.outgoing_broadcast_messages.append(bbo_message)
+                    self.check_for_peg_update(timestamp)
+    
+    # compares book's peg state against exchange's peg state, sending an update
+    # if a change is seen
+    def check_for_peg_update(self, timestamp):
+        cur_peg_state = self.order_book.get_peg_state()
+        if self.previous_peg_state == cur_peg_state:
+            return
+        self.previous_peg_state = cur_peg_state
+        self.send_peg_state_update(timestamp)
+    
+    # create and send a peg state update message
+    def send_peg_state_update(self, timestamp):
+        peg_price = self.order_book.peg_price
+        # HACK: when peg price is None, need to represent that somehow
+        # I wanna get this done, so -999999 represents None
+        if peg_price is None:
+            peg_price = -999999
+        m = OuchServerMessages.PegStateUpdate(
+            timestamp = timestamp,
+            peg_state = self.order_book.get_peg_state(),
+            peg_price = peg_price
+        )
+        self.outgoing_broadcast_messages.append(m)

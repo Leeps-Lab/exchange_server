@@ -295,3 +295,10 @@ Peg Price: ${}
             return self.check_ask_peg_cross()
         else:
             return self.check_bid_peg_cross()
+        
+    # called externally:
+    # returns K -- represents state of pegged order book
+    # if K is positive, all pegs are asks and K is number of pegs
+    # if K is negative, all pegs are bids and -K is number of pegs
+    def get_peg_state(self):
+        return len(self.pegged_asks) - len(self.pegged_bids)

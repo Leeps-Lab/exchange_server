@@ -46,9 +46,15 @@ class OuchFields(ProtocolFieldEnum):
     # fields for fb auction post batch msg
     clearing_price = ('I', 'todo')
     transacted_volume = ('I', 'todo')
+    # external best bid and offer, for midpoint peg updates
     e_best_bid = ('I', 'todo')
     e_best_offer = ('I', 'todo')
+    # boolean for pegged orders
     midpoint_peg = ('?', 'todo')
+    # fields for peg state update message
+    peg_state = ('i', 'todo')
+    peg_price = ('I', 'todo')
+
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -176,6 +182,11 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['timestamp', 'stock', 'clearing_price', 'transacted_volume',
              'best_bid', 'volume_at_best_bid', 'volume_at_best_ask', 'best_ask', 
              'next_bid', 'next_ask']
+        )
+    
+    PegStateUpdate = ('{timestamp}:{peg_state}:{peg_price}',
+            {'msg_type': b'L'},
+            ['timestamp', 'peg_state', 'peg_price']
         )
     
     BrokenTrade = ('{timestamp}:XX{order_token}m{match_number}({reason})',
