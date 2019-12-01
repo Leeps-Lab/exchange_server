@@ -1,12 +1,15 @@
 from collections import OrderedDict
 import logging as log
-from exchange.order_books.book_price_q import BookPriceQ
+from .book_price_q import BookPriceQ
 
 class Node:
 	def __init__(self, data, prev = None, next = None):
 		self.data = data
 		self.next = next
 		self.prev = prev
+	
+	def __repr__(self):
+		return '<node  price:{}, lit:{}>'.format(self.data.price, self.data.lit)
 
 class SortedIndexedDefaultList:
 	'''
@@ -27,7 +30,6 @@ class SortedIndexedDefaultList:
 
 	def __str__(self):
 		return ',\n'.join([str(i) for i in self.ascending_items()])
-
 
 	def insert(self, data):
 		id = self.index_func(data)
@@ -72,6 +74,9 @@ class SortedIndexedDefaultList:
 		else:
 			return self.index[index].data	
 
+	def __len__(self):
+		return len(self.index)
+
 	def remove(self, index):
 		try:
 			node = self.index[index]
@@ -103,16 +108,4 @@ class SortedIndexedDefaultList:
 		while current is not None:
 			yield current.data
 			current = current.prev
-
-if __name__ == '__main__':
-    l = SortedIndexedDefaultList(index_func = lambda bpq : bpq.price, initializer = lambda price: BookPriceQ(price))
-    print(l)
-    l.insert(BookPriceQ(10))
-    print(l)
-    l.insert(BookPriceQ(11))
-    print(l)
-    l.insert(BookPriceQ(9))
-    print(l)
-    l.remove(9)
-    print(l)
 

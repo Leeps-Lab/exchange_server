@@ -46,6 +46,15 @@ class OuchFields(ProtocolFieldEnum):
     # fields for fb auction post batch msg
     clearing_price = ('I', 'todo')
     transacted_volume = ('I', 'todo')
+    # external best bid and offer, for midpoint peg updates
+    e_best_bid = ('I', 'todo')
+    e_best_offer = ('I', 'todo')
+    # boolean for pegged orders
+    midpoint_peg = ('?', 'todo')
+    # fields for peg state update message
+    peg_state = ('i', 'todo')
+    peg_price = ('I', 'todo')
+
 
 class OuchHeader(NamedFieldSequence):
     __slots__ = ('msg_type',)
@@ -90,7 +99,7 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['order_token', 'buy_sell_indicator', 'shares', 'stock',
              'price', 'time_in_force', 'firm', 'display', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'customer_type']
+             'cross_type', 'customer_type', 'midpoint_peg']
         )
     ReplaceOrder = ('{existing_order_token}->{replacement_order_token}:{shares}@{price}',
             {'msg_type': b'U'},
@@ -114,6 +123,10 @@ class OuchClientMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             {'msg_type': b'H'},
             ['timestamp', 'event_code']
         )
+    ExternalFeedChange = ('{e_best_bid}:{e_best_offer}',
+            {'msg_type': b'K'},
+            ['e_best_bid', 'e_best_offer']
+        )
 
 
 LookupByHeaderBytesMixin = create_attr_lookup_mixin(
@@ -130,7 +143,7 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
              'stock', 'price', 'time_in_force', 'firm', 'display',
              'order_reference_number', 'capacity',
              'intermarket_sweep_eligibility', 'minimum_quantity',
-             'cross_type', 'order_state', 'bbo_weight_indicator']
+             'cross_type', 'order_state', 'bbo_weight_indicator', 'midpoint_peg']
         )
     Replaced = ('{timestamp}:{replacement_order_token}({order_reference_number}):{buy_sell_indicator}{shares}x{stock}@{price}',
             {'msg_type': b'U'},
@@ -139,11 +152,11 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
              'time_in_force', 'firm', 'display', 'order_reference_number',
              'capacity', 'intermarket_sweep_eligibility',
              'minimum_quantity', 'cross_type', 'order_state',
-             'previous_order_token', 'bbo_weight_indicator']
+             'previous_order_token', 'bbo_weight_indicator', 'midpoint_peg']
         )
     Canceled = ('{timestamp}:{order_token}:-{decrement_shares}({reason})',
             {'msg_type': b'C'},
-            ['timestamp', 'order_token', 'decrement_shares', 'reason']
+            ['timestamp', 'order_token', 'decrement_shares', 'reason', 'midpoint_peg']
         )
     AIQCanceled = ('{timestamp}:{order_token}:-{decrement_shares}({reason})',
             {'msg_type': b'D'},
@@ -154,7 +167,7 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
     Executed = ('{timestamp}:{order_token}m{match_number}:{executed_shares}@{execution_price}',
             {'msg_type': b'E'},
             ['timestamp', 'order_token', 'executed_shares',
-             'execution_price', 'liquidity_flag', 'match_number']
+             'execution_price', 'liquidity_flag', 'match_number', 'midpoint_peg']
         )
 
     BestBidAndOffer = ('{timestamp}:{stock}:bid:{volume_at_best_bid}@{best_bid}:ask:{volume_at_best_ask}@{best_ask}',
@@ -169,6 +182,11 @@ class OuchServerMessages(LookupByHeaderBytesMixin, OuchMessageTypeSpec,
             ['timestamp', 'stock', 'clearing_price', 'transacted_volume',
              'best_bid', 'volume_at_best_bid', 'volume_at_best_ask', 'best_ask', 
              'next_bid', 'next_ask']
+        )
+    
+    PegStateUpdate = ('{timestamp}:{peg_state}:{peg_price}',
+            {'msg_type': b'L'},
+            ['timestamp', 'peg_state', 'peg_price']
         )
     
     BrokenTrade = ('{timestamp}:XX{order_token}m{match_number}({reason})',
