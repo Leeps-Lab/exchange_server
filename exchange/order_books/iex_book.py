@@ -83,6 +83,8 @@ Peg Price: ${}
         entered_order = None
         bbo_update = None
 
+        log.debug(midpoint_peg)
+
         if midpoint_peg and not self.peg_price:
             log.warn('pegged order entered before peg price is set, dropping order')
             return ([], (), None)
@@ -152,6 +154,8 @@ Peg Price: ${}
         order_crosses = []
         entered_order = None
         bbo_update = None
+
+        log.debug(midpoint_peg)
 
         if midpoint_peg and not self.peg_price:
             log.warn('pegged order entered before peg price is set, dropping order')
@@ -280,6 +284,7 @@ Peg Price: ${}
     def update_peg_price(self, new_price):
         old_price = self.peg_price
         self.peg_price = new_price
+        log.d('Updating peg price from {0} to {1}' % (old_price, new_price))
         if new_price is None:
             return ([], None)
         elif old_price is None:

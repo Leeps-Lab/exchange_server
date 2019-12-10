@@ -33,8 +33,8 @@ def main():
 
     log.basicConfig(level= log.DEBUG,
         format = "[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
-        datefmt = '%H:%M:%S',
-        filename = options.logfile)
+        datefmt = '%H:%M:%S')#,
+        #filename = options.logfile)
 
     loop = asyncio.get_event_loop()
     server = ProtocolMessageServer(OuchClientMessages)
