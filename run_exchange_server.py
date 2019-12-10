@@ -28,10 +28,10 @@ options, args = p.parse_known_args()
 
 
 def main():
-    if not options.debug:
-        sys.tracebacklimit = 0
+    #if not options.debug:
+    #    sys.tracebacklimit = 0
 
-    log.basicConfig(level= log.CRITICAL,
+    log.basicConfig(level= log.DEBUG,
         format = "[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
         datefmt = '%H:%M:%S',
         filename = options.logfile)
