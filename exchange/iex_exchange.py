@@ -44,7 +44,7 @@ class IEXExchange(Exchange):
             peg_point = None
         else:
             peg_point = (message['e_best_bid'] + message['e_best_offer']) // 2
-        log.debug('Peg update: new peg is is %d', peg_point)
+        #log.debug('Peg update: new peg is is %d', peg_point)
         (crossed_orders, new_bbo) = self.order_book.update_peg_price(peg_point)
         cross_messages = [m for ((id, fulfilling_order_id), price, volume) in crossed_orders 
                             for m in self.process_cross(id, fulfilling_order_id, price, volume, timestamp=timestamp)]

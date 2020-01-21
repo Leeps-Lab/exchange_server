@@ -83,7 +83,6 @@ Peg Price: ${}
         entered_order = None
         bbo_update = None
 
-        log.debug(midpoint_peg)
 
         if midpoint_peg and not self.peg_price:
             log.warn('pegged order entered before peg price is set, dropping order')
@@ -144,7 +143,6 @@ Peg Price: ${}
                 if new_bbo:
                     bbo_update = new_bbo
             entered_order = (order_id, effective_price, volume_to_fill)
-
         return (order_crosses, entered_order, bbo_update) 
 
     def enter_sell(self, order_id, price, volume, enter_into_book, midpoint_peg):
@@ -155,13 +153,12 @@ Peg Price: ${}
         entered_order = None
         bbo_update = None
 
-        log.debug(midpoint_peg)
-
         if midpoint_peg and not self.peg_price:
             log.warn('pegged order entered before peg price is set, dropping order')
             return ([], (), None)
         # if this order is pegged and its start price isn't aggressive, just drop it
         if midpoint_peg and price > self.peg_price: 
+            #print('dropping sell order for not being aggressive')
             return ([], (), None)
 
         # if this order is pegged and it is aggressive enough, use peg point as the price
@@ -284,7 +281,7 @@ Peg Price: ${}
     def update_peg_price(self, new_price):
         old_price = self.peg_price
         self.peg_price = new_price
-        log.d('Updating peg price from {0} to {1}' % (old_price, new_price))
+        #log.debug('Updating peg price from {0} to {1}' % (old_price, new_price))
         if new_price is None:
             return ([], None)
         elif old_price is None:
