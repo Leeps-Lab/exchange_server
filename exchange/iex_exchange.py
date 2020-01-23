@@ -28,12 +28,14 @@ class IEXExchange(Exchange):
         log.debug('Processing message %s', message)
 
         if message.message_type in self.delayed_message_types:
+            log.error('my delaying message by %s, %s, %s', self.delay, 'message:', message)
             self.loop.call_later(self.delay, self._process_message, message)
         else:
             self._process_message(message)
 
     def _process_message(self, message):
         """actually process a message. called, possibly after a delay, by process_message"""
+        log.error('my processing message %s', message)
         timestamp = nanoseconds_since_midnight()
         self.handlers[message.message_type](message, timestamp)
         asyncio.ensure_future(self.send_outgoing_messages())

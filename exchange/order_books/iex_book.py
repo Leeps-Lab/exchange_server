@@ -152,6 +152,7 @@ Peg Price: ${}
         order_crosses = []
         entered_order = None
         bbo_update = None
+        log.error('enter sell, id: %s, pegged: %s', order_id, midpoint_peg)
 
         if midpoint_peg and not self.peg_price:
             log.warn('pegged order entered before peg price is set, dropping order')
