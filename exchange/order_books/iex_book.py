@@ -84,6 +84,7 @@ Peg Price: ${}
         bbo_update = None
 
 
+        log.error('enter buy, id: %s, pegged: %s', order_id, midpoint_peg)
         if midpoint_peg and not self.peg_price:
             log.warn('pegged order entered before peg price is set, dropping order')
             return ([], (), None)
@@ -143,6 +144,8 @@ Peg Price: ${}
                 if new_bbo:
                     bbo_update = new_bbo
             entered_order = (order_id, effective_price, volume_to_fill)
+        
+        log.debug('Order crosses, %s', order_crosses)
         return (order_crosses, entered_order, bbo_update) 
 
     def enter_sell(self, order_id, price, volume, enter_into_book, midpoint_peg):
@@ -216,6 +219,7 @@ Peg Price: ${}
                     bbo_update = new_bbo
             entered_order = (order_id, effective_price, volume_to_fill)
 
+        log.debug('Order crosses, %s', order_crosses)
         return (order_crosses, entered_order, bbo_update) 
     
     # check whether any pegged bids have crossed with non-pegged asks
