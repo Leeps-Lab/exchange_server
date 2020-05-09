@@ -93,9 +93,13 @@ class Exchange:
         m.meta = replace_order_message.meta
         return m
 
-    def order_cancelled_from_cancel(self, original_enter_message, timestamp, amount_canceled, reason=b'U'):
+    def order_cancelled_from_cancel(self, original_enter_message, timestamp, amount_canceled, reason=b'U', cancel_order_token=None):
+        if cancel_order_token == None:
+            order_token = original_order_message['order_token']
+        else:
+            order_token = cancel_order_token
         m = OuchServerMessages.Canceled(timestamp = timestamp,
-                            order_token = original_enter_message['order_token'],
+                            order_token = order_token,
                             decrement_shares = amount_canceled,
                             reason = reason,
                             midpoint_peg = original_enter_message['midpoint_peg'])
@@ -189,9 +193,8 @@ class Exchange:
                 price = store_entry.first_message['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason)
+            cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason, id)
                         for (id, amount_canceled) in cancelled_orders ]
-
             self.outgoing_messages.extend(cancel_messages) 
             log.debug("Resulting book: %s", self.order_book)
             if new_bbo:
@@ -216,6 +219,7 @@ class Exchange:
         #         either a Replaced Message or an Atomically Replaced and Canceled Message.
         # """
     def replace_order_atomic(self, replace_order_message, timestamp):
+        log.debug(replace_order_message)
         if replace_order_message['existing_order_token'] not in self.order_store.orders:
             log.debug('Existing token %s unknown, siliently ignoring', replace_order_message['existing_order_token'])
             return []
