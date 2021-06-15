@@ -95,7 +95,8 @@ class Exchange:
 
     def order_cancelled_from_cancel(self, original_enter_message, timestamp, amount_canceled, reason=b'U', cancel_order_token=None):
         if cancel_order_token == None:
-            order_token = original_order_message['order_token']
+            #order_token = original_order_message['order_token']
+            order_token = original_enter_message['order_token']
         else:
             order_token = cancel_order_token
         m = OuchServerMessages.Canceled(timestamp = timestamp,
