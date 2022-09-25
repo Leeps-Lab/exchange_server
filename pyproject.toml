@@ -1,0 +1,12 @@
+[project]
+name = "OuchServer"
+version = "0.0.1"
+dependencies = [
+    "ConfigArgParse == 0.13.0",
+    "pytz == 2017.3"
+]
+
+[tool.setuptools]
+packages = [
+    "OuchServer"
+]
