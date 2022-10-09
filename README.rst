@@ -1,5 +1,13 @@
 Python 3.6
 
+Docker:
+
+::
+
+    docker-compose up
+    
+creates a multicontainer Docker application. 3 servers with auction formats: CDA, FBA, IEX will listen on host ports 9001 to 9003. configured over environment variables declared in docker-compsose.yaml .
+
 Dependencies:
 
 ::
