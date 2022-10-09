@@ -3,13 +3,22 @@ version: '3'
 services:
   continuous_double_auction:
     build: .
+    image: exchange_server
     ports:
       - '9001:9001'
 
   frequent_batch_auction:
-    build: .
+    image: exchange_server
     ports:
       - '9002:9001'
     environment:
       - MECHANISM=fba
-      - INTERVAL=1
+      - INTERVAL=10
+
+  iex:
+    image: exchange_server
+    ports:
+      - '9003:9001'
+    environment:
+      - MECHANISM=iex
+      - DELAY=1
