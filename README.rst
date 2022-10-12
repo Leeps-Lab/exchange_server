@@ -1,6 +1,27 @@
-Python 3.6
 
-Dependencies:
+Docker
+==========
+
+::
+
+    docker-compose up
+    
+creates a multicontainer Docker application. 3 servers with auction formats: CDA, FBA, IEX will listen on host ports 9001 to 9003. configured over environment variables declared in docker-compsose.yaml .
+
+
+Server Setup
+=================
+
+create and activate a virtual environment.
+
+::
+
+    pip install virtualenv
+    virtualenv -p python3.6 env
+    source env/bin/activate
+
+install dependencies.
+
 
 ::
 
