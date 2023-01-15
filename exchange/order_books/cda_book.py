@@ -49,7 +49,12 @@ class CDABook:
 		'''
 		orders = self.bids if buy_sell_indicator == b'B' else self.asks
 		if price not in orders or id not in orders[price].order_q:
+			log.debug('-----------------------------------------------')
 			log.debug('No order in the book to cancel, cancel ignored.')
+			log.debug(f'Token to cancel: {id}. Price: {price}.')
+			log.debug(f'active tokens: {orders[price].order_q}.')
+			log.debug(f'active orders: {orders}')
+			log.debug('-----------------------------------------------')
 			return [], None
 		else:
 			amount_canceled=0
