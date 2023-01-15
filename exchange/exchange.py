@@ -183,7 +183,7 @@ class Exchange:
 
         #if cancel_order_message['order_token'] not in self.order_store.orders.get():
         if self.order_store.orders.get(cancel_order_message['order_token']) is None:
-            log.debug('No such order to cancel, ignored')
+            log.debug(f"No such order to cancel, ignored. \nToken to cancel: {cancel_order_message['order_token']}")
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
             original_enter_message = store_entry.original_enter_message
