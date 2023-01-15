@@ -63,6 +63,14 @@ class OrderStoreEntry:
 		self.first_message = message
 		self.original_enter_message = original_enter_message if original_enter_message is not None else message
 		self.history.append(message)
+	def __str__(self):
+		msg_dict = {
+			"history": self.history,
+			"executed_quantity" : self.executed_quantity,
+			"first_message" : self.first_message,
+			"original_enter_message" : self.original_enter_message
+		}
+		return " {} ".format( self.msg_dict)
 
 	def add_to_order(self, message):
 		self.history.append(message)
