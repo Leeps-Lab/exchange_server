@@ -304,6 +304,8 @@ class Exchange:
                     if bbo_message:
                         self.outgoing_broadcast_messages.append(bbo_message)
 
+        log.debug("Resulting orderstore: %s", self.order_store)
+
     async def send_outgoing_broadcast_messages(self):
         while len(self.outgoing_broadcast_messages)>0:
             m = self.outgoing_broadcast_messages.popleft()
