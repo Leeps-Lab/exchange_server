@@ -10,6 +10,21 @@ class OrderStore:
 	def __init__(self):
 		self.orders = {}
 
+	def __str__(self):
+		return """  
+  Oderstore:
+{}
+""".format( self.orders)
+
+	# def reset_book(self):						#jason
+	# 	log.info('Clearing All Entries from Order Book')
+	# 	self.bid = MIN_BID
+	# 	self.ask = MAX_ASK
+	# 	for id in list(self.asks.index):		#force as list because can't interate dict and delete keys at same time
+    #             	self.asks.remove(id)
+	# 	for id in list(self.bids.index):
+    #             	self.bids.r
+
 	def store_order(self, id, message, original_enter_message = None, executed_quantity = 0):
 		'''
 		Called to create a new order store entry, either with an EnterOrder message, or a replace order message that creates a new order.
