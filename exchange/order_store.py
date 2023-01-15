@@ -70,7 +70,7 @@ class OrderStoreEntry:
 			"first_message" : self.first_message,
 			"original_enter_message" : self.original_enter_message
 		}
-		return " {} ".format( self.msg_dict)
+		return " {} ".format(msg_dict)
 
 	def add_to_order(self, message):
 		self.history.append(message)
