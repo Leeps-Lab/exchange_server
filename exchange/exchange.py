@@ -190,8 +190,8 @@ class Exchange:
             cancelled_orders, new_bbo = self.order_book.cancel_order(
                 #id = cancel_order_message['order_token'],
                 id = original_enter_message['order_token'],
-                #price = store_entry.first_message['price'],
-                price = store_entry.history[-1]['price'],
+                price = store_entry.first_message['price'],
+                #price = store_entry.history[-1]['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
             cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason)
