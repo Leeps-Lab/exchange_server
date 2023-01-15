@@ -87,7 +87,8 @@ class Exchange:
 
     def cancel_order_from_replace_order(self, replace_order_message, reason = b'U'):
         m = OuchClientMessages.CancelOrder(
-            order_token = replace_order_message['replacement_order_token'],
+            #order_token = replace_order_message['replacement_order_token'],
+            order_token = replace_order_message['existing_order_token'],
             shares = 0
             )
         m.meta = replace_order_message.meta
@@ -179,7 +180,9 @@ class Exchange:
                 self.outgoing_broadcast_messages.append(bbo_message)
 
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
-        if cancel_order_message['order_token'] not in self.order_store.orders:
+
+        #if cancel_order_message['order_token'] not in self.order_store.orders.get():
+        if self.order_store.orders.get(cancel_order_message['order_token']) is None:
             log.debug('No such order to cancel, ignored')
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
