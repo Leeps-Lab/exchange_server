@@ -4,6 +4,7 @@ import asyncio.streams
 import configargparse
 import logging as log
 import itertools
+import copy
 from functools import partial
 from collections import deque
 
@@ -193,11 +194,8 @@ class Exchange:
                 price = store_entry.history[-1]['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            message_to_broadcast = {
-                "order_token" : cancel_order_message['order_token'],
-                "midpoint_peg" : original_enter_message["midpoint_peg"],
-                "meta" : original_enter_message["meta"]
-            }
+            message_to_broadcast = copy.deepcopy(original_enter_message)
+            message_to_broadcast["order_token"] = cancel_order_message['order_token']
             cancel_messages = [ self.order_cancelled_from_cancel(message_to_broadcast, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
 
