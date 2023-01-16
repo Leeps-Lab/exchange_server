@@ -95,7 +95,9 @@ class Exchange:
         m.meta = replace_order_message.meta
         return m
 
-    def order_cancelled_from_cancel(self, original_enter_message, timestamp, amount_canceled, reason=b'U'):
+    def order_cancelled_from_cancel(self, original_enter_message, timestamp, amount_canceled, reason=b'U',order_token = None):
+
+        order_token = original_enter_message['order_token'] if order_token is None else order_token
         m = OuchServerMessages.Canceled(timestamp = timestamp,
                             order_token = original_enter_message['order_token'],
                             decrement_shares = amount_canceled,
@@ -194,8 +196,7 @@ class Exchange:
                 price = store_entry.history[-1]['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            #original_enter_message["order_token"] = cancel_order_message['order_token']
-            cancel_messages = [ self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
+            cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason,order_token= cancel_order_message['order_token'])
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
