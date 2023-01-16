@@ -188,8 +188,8 @@ class Exchange:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
             original_enter_message = store_entry.original_enter_message
             cancelled_orders, new_bbo = self.order_book.cancel_order(
-                #id = cancel_order_message['order_token'],
-                id = original_enter_message['order_token'],
+                id = cancel_order_message['order_token'],
+                #id = original_enter_message['order_token'],
                 price = store_entry.first_message['price'],
                 #price = store_entry.history[-1]['price'],
                 volume = cancel_order_message['shares'],
