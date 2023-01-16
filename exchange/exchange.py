@@ -189,12 +189,16 @@ class Exchange:
             original_enter_message = store_entry.original_enter_message
             cancelled_orders, new_bbo = self.order_book.cancel_order(
                 id = cancel_order_message['order_token'],
-                #id = original_enter_message['order_token'],
-                price = store_entry.first_message['price'],
-                #price = store_entry.history[-1]['price'],
+                #price = store_entry.first_message['price'],
+                price = store_entry.history[-1]['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason)
+            message_to_broadcast = {
+                "order_token" : cancel_order_message['order_token'],
+                "midpoint_peg" : original_enter_message["midpoint_peg"],
+                "meta" : original_enter_message["meta"]
+            }
+            cancel_messages = [ self.order_cancelled_from_cancel(message_to_broadcast, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
