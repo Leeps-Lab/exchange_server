@@ -194,9 +194,8 @@ class Exchange:
                 price = store_entry.history[-1]['price'],
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = store_entry.original_enter_message['buy_sell_indicator'])
-            message_to_broadcast = copy.deepcopy(original_enter_message)
-            message_to_broadcast["order_token"] = cancel_order_message['order_token']
-            cancel_messages = [ self.order_cancelled_from_cancel(message_to_broadcast, timestamp, amount_canceled, reason)
+            #original_enter_message["order_token"] = cancel_order_message['order_token']
+            cancel_messages = [ self.order_cancelled_from_cancel(cancel_order_message, timestamp, amount_canceled, reason)
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
