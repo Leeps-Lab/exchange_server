@@ -99,7 +99,7 @@ class Exchange:
 
         order_token = original_enter_message['order_token'] if order_token is None else order_token
         m = OuchServerMessages.Canceled(timestamp = timestamp,
-                            order_token = original_enter_message['order_token'],
+                            order_token = order_token,
                             decrement_shares = amount_canceled,
                             reason = reason,
                             midpoint_peg = original_enter_message['midpoint_peg'])
