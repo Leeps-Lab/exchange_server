@@ -93,7 +93,7 @@ class IEXExchange(Exchange):
 
     def cancel_order_atomic(self, cancel_order_message, timestamp, reason=b'U'):
         if cancel_order_message['order_token'] not in self.order_store.orders:
-            log.debug('No such order to cancel, ignored')
+           log.debug(f"No such order to cancel, ignored. Token to cancel: {cancel_order_message['order_token']}")
         else:
             store_entry = self.order_store.orders[cancel_order_message['order_token']]
             original_enter_message = store_entry.original_enter_message
@@ -103,7 +103,7 @@ class IEXExchange(Exchange):
                 volume = cancel_order_message['shares'],
                 buy_sell_indicator = original_enter_message['buy_sell_indicator'],
                 midpoint_peg = original_enter_message['midpoint_peg'])
-            cancel_messages = [  self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason)
+            cancel_messages = [ self.order_cancelled_from_cancel(original_enter_message, timestamp, amount_canceled, reason, order_token= cancel_order_message['order_token'])
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
