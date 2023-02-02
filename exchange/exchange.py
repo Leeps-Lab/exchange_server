@@ -169,7 +169,7 @@ class Exchange:
                     enter_order_message['price'],
                     enter_order_message['shares'],
                     enter_into_book)
-            log.debug("Resulting book: %s", self.order_book)
+            #log.debug("Resulting book: %s", self.order_book)
             m=self.accepted_from_enter(enter_order_message, 
                 order_reference_number=next(self.order_ref_numbers),
                 timestamp=timestamp)
@@ -199,7 +199,7 @@ class Exchange:
                         for (id, amount_canceled) in cancelled_orders ]
 
             self.outgoing_messages.extend(cancel_messages) 
-            log.debug("Resulting book: %s", self.order_book)
+            #log.debug("Resulting book: %s", self.order_book)
             if new_bbo:
                 bbo_message = self.best_quote_update(cancel_order_message, new_bbo, timestamp)
                 self.outgoing_broadcast_messages.append(bbo_message)
@@ -266,7 +266,7 @@ class Exchange:
                             replace_order_message['price'],
                             liable_shares,
                             enter_into_book)
-                    log.debug("Resulting book: %s", self.order_book)
+                    #log.debug("Resulting book: %s", self.order_book)
 
                     r = OuchServerMessages.Replaced(
                             timestamp=timestamp,
@@ -309,7 +309,7 @@ class Exchange:
                     if bbo_message:
                         self.outgoing_broadcast_messages.append(bbo_message)
 
-        log.debug("Resulting orderstore: %s", self.order_store)
+        #log.debug("Resulting orderstore: %s", self.order_store)
 
     async def send_outgoing_broadcast_messages(self):
         while len(self.outgoing_broadcast_messages)>0:
