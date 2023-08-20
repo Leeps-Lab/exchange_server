@@ -314,16 +314,13 @@ class Exchange:
     async def send_outgoing_broadcast_messages(self):
         while len(self.outgoing_broadcast_messages)>0:
             m = self.outgoing_broadcast_messages.popleft()
-            log.debug('Sending message %s', m)
             await self.message_broadcast(m)
-            log.debug('Sent message %s', m)    
+            
 
     async def send_outgoing_messages(self):
         while len(self.outgoing_messages)>0:
             m = self.outgoing_messages.popleft()
-            log.debug('Sending message %s', m)
             await self.order_reply(m)
-            log.debug('Sent message %s', m)
 
     async def process_message(self, message):
         log.debug('Processing message %s', message)
