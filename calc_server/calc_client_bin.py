@@ -79,12 +79,12 @@ def main():
                 operand_3=random.randrange(2**32)
             )
 
-            print('send message: ', request)
-            log.info("Sending Calc message: %s", request)
+            #print('send message: ', request)
+            #log.info("Sending Calc message: %s", request)
             await send(request)
             response = await recv()
-            print('recv message: ', response)
-            log.info("Received response Calc message: %s", response)    
+            #print('recv message: ', response)
+            #log.info("Received response Calc message: %s", response)    
             await asyncio.sleep(4.0)
             
         writer.close()
